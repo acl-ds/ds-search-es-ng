@@ -1,0 +1,379 @@
+// ----- Strings -----
+
+text
+ = chars:([0-9a-zA-Z_-] / "@" / ".")+ { return chars.join("")}
+
+string_or_text "generic_text"
+  =  text / string 
+
+string "string"
+  = quotation_mark chars:char* quotation_mark { return chars.join(""); }
+
+char
+  = unescaped
+  / escape
+    sequence:(
+        '"'
+      / "\\"
+      / "/"
+      / "|"
+      / "b" { return "\b"; }
+      / "f" { return "\f"; }
+      / "n" { return "\n"; }
+      / "r" { return "\r"; }
+      / "t" { return "\t"; }
+      / "u" digits:$(HEXDIG HEXDIG HEXDIG HEXDIG) {
+          return String.fromCharCode(parseInt(digits, 16));
+        }
+    )
+    { return sequence; }
+
+escape
+  = "\\"
+
+quotation_mark
+  = '"'
+
+unescaped
+  = [^\0-\x1F\x22\x5C|]
+
+// ----- White spaces -----
+
+ws "whitespace"
+ = [ \t]
+
+_ "whitespace"
+  = ws*
+
+// ----- Core ABNF Rules -----
+
+// See RFC 4234, Appendix B (http://tools.ietf.org/html/rfc4234).
+DIGIT  = [0-9]
+HEXDIG = [0-9a-f]i
+
+// ----- Operators -----
+minus
+  = "-"
+
+plus
+  = "+"
+
+mod
+  = "%"
+
+div
+  = "//"
+
+mul
+  = "*"
+
+pow
+  = "^"
+
+// ----- Numbers -----
+
+number "number"
+  = minus? int frac? exp? { return parseFloat(text()); }
+
+decimal_point
+  = "."
+
+digit1_9
+  = [1-9]
+
+e
+  = [eE]
+
+exp
+  = e (minus / plus)? DIGIT+
+
+frac
+  = decimal_point DIGIT+
+
+int
+  = zero / (digit1_9 DIGIT*)
+
+zero
+  = "0"
+
+newline = '\n' / '\r' '\n'?
+EOL = newline / !.
+
+// End of general specs
+
+// -------- On language specs ---------
+
+statments
+  = first:(s:statment _ statment_seperator {return s})* last: statment _   { return first.concat(last) }
+
+statment_seperator
+  = _ ( "|" / newline )  _
+
+statment
+  =   search_statment 
+    / aggregate_statment
+    / select_statment
+    / calc_statment
+    / filter_statement
+    / sort_statement
+    / first_or_last
+    / dedup_statment
+    / stack_statement
+    / join_statment
+    / lookup_statement
+    / load_statement
+    / "single_row" {  return {statement:'row'}}
+    / "nop"
+
+// Named fields_types - for auto complete
+
+index_name_field "index_name" = string / chars:[0-9a-z-_\*\.]+ { return chars.join("")}
+field_name_field "gen_field_name" = string_or_text
+text_field_name "text_field_name" = string_or_text
+numeric_field_name "num_field_name" = string_or_text
+ts_field_name "ts_field_name" = string_or_text
+any_field "any_text_field" = string_or_text
+
+search_mode_name "search_mode_name" = text
+
+// Function Arguments
+
+function_param 
+  = ( name:text _ "=" _ value:( number / any_field)  { return { name,value } } )
+
+function_params "function_params"
+  = first:(s:function_param "," _ { return s })* last:function_param { return first.concat(last).reduce((acc,current)=> { acc[current.name] = current.value; return acc },{})}
+
+ordered_params "function_ordered_params"
+  = first: (s:( number / any_field) "," {return s })* last: (number / string_or_text) { return first.concat(last) }
+
+// ----- On General Tokens
+
+SearchToken "module_name" = "search"
+AggregateToken "module_name" = "aggregate" / "aggs"
+SelectToken "module_name" = "select"
+CalcToken "module_name" = "calc" / "calculate"
+FilterToken "module_name" = "filter"
+SortToken "module_name" = "sort"
+FirstOrLast "module_name" = "first" / "last"
+DedupToken "module_name" = "dedup"
+StackToken "module_name" = "stack"
+JoinToken "module_name" = "join"
+LookupToken "module_name" = "lookup"
+LoadToken "module_name" = "load"
+
+
+// ------- Search Statment ---------
+
+search_statment
+  = _ SearchToken specs:searchSpecs ws+ index:indexText filter:lQuery?   { return { statement:'search',body:{index,...specs,...filter}}}
+
+
+
+indexText
+  = _ "index" _ "="  _ index:index_name_field { return index }
+
+
+searchSpecs
+  = sp: ( sizeText / orderText / timeField / searchMode/ bypassTS )* { return sp.reduce( (final,spec) => ({...final,...spec}), {query:'*',size:25,order:'desc',orderBy:'@timestamp',timeField:'@timestamp',searchMode:'default',bypassTimeFilter:false,}) }
+
+
+lQuery "mini_filter"
+  = ws+ ( "AND" ws+)? query:(chars:char* { return chars.join(""); }) { return { query:query.trim().length?query:'*' } }
+
+sizeText
+  = ws+ "size" _ "=" _ size:number { return {size} }
+
+orderText
+  = ws+ "order" _  order:( "asc" / "desc") orderBy:( _ "by" _ "=" _ byTxt:field_name_field { return byTxt } )? { return { order,orderBy }}
+
+
+timeField
+ = ws+ "time_field" _ "=" _ timeField:ts_field_name { return { timeField }}
+
+searchMode
+ = ws+ "mode" _ "=" _ searchMode:search_mode_name { return { searchMode }}
+
+bypassTS
+ =  ws+ "bypassTS" { return {bypassTimeFilter:true}}
+
+// ------ Aggregate Statment -------
+
+aggregate_statment
+  = _ AggregateToken ws+ metric:metric_section  by:by_section? { return { statement:"aggregate",body:{metric,by} }}
+
+// Metric functions
+metric_section 
+  =  singe_value_functions  / "count"
+
+// Single value function
+singe_value_functions
+  = metric_functions : ( first: (s:singe_value_function "," _ {return s })* last:singe_value_function { return first.concat(last)}) { return { metric_functions } }
+
+singe_value_function
+  = fun:(metricFunctionToken) _ "(" _ params: (hits_function / function_params / field_name_field ) _ ")" name:rename_as? { return { fun,params,name } }
+
+metricFunctionToken "singe_value_function" = "avg" / "max" / "min" / "dc" / "hits" / "sum" / "stats" / "e_stats" / "count_if" / "median"/ "der"
+
+rename_as
+ = ws+ ("AS" / "as") ws+ as:string_or_text {return as}
+
+// Hits function
+hits_function
+ = _ "top" "(" _ cols:hits_cols _ ")" size:top_size_spec? {return {cols,count: size || 10} }
+
+hits_cols
+ = first: (s:string_or_text "," _ { return s } )* last:string_or_text {return first.concat(last) }
+
+top_size_spec
+ = _ ( "pick"  / "size" ) ws+ n:number { return n }
+
+by_section
+ = ws+ "by" ws+ first: ( t:m "," _ {return t})* last:m  { return first.concat(last) }
+
+m = t:( time_series_clause / sample_term_clause / term_clause) name:rename_as? {return {...t,name}}
+
+term_clause
+  = f:text_field_name  specs:( "(" _ size:number order:( "," _ o: ("asc" / "desc") {return  o })?  ")" {return { size:size || 5, order: order || 'desc' } } )? { return {mode:'terms',field:f,...specs}}
+
+timeseries "by_function" = "timeseries"
+bins "by_function" = "bin"
+
+time_series_clause
+  =  timeseries ws+ f:ts_field_name  specs_params:( "(" _ p:ordered_params _ ")" {return {size : p[0]!==undefined ? p[0] : 10, order : p[1] || 'desc', interval: p[2],mode_i:p[3]}  } )? { return {mode:'time_series',field:f,...specs_params}}
+
+sample_term_clause
+ = bins ws+ f:numeric_field_name "(" _ interval:number _ ")" { return {mode:'histogram',field:f,interval}}
+
+// ------- Select Statment ---------
+
+select_statment
+ = _ SelectToken ws+ include:( "_all" / include_select) exclude:( ws+ "exclude" ws+ terms:include_select {return terms} )? { return { statement:'select',include, exclude } }
+
+include_select
+ = first:( s:select_term "," _ { return s } )* last:select_term { return first.concat(last)}
+
+select_term
+ = name:field_name_field rename:( ws+ ("AS" / "as") ws+ as:field_name_field { return as})? { return {name,rename}} 
+
+ // ------- calc Statment ---------
+
+calc_statment
+  = _ CalcToken ws+ ev:eval_expr_statment_seq  { return { statement:'calc',evals:ev }} 
+
+eval_expr_statment_seq
+  = first:(e:eval_expr_statment',' _ {return e})* last:eval_expr_statment { return first.concat(last)}
+
+eval_expr_statment
+ = out:any_field _ "="_ exp:eval_expr { return { out, exp }}
+
+eval_expr =  eval_function / binary_expr 
+
+binary_operator "binary_operator" = "+" / "-" / "*" / "/"
+
+binary_expr
+  = left:binary_expr_seq _ operator:binary_operator _ right:binary_expr_seq  { return {type:'binary_expression',left,operator,right}}
+
+binary_expr_seq = literal / eval_function / field_name / ("("  _ exp:eval_expr _ ")"  {return exp })
+
+field_name 
+ = name:field_name_field { return {type:'field_name',name}}
+
+literal "constant"
+ = lit: (number/string) {return {type:'literal',value:lit}}
+
+eval_function_name "eval_function_name" = text
+
+eval_function
+  = fun:eval_function_name "(" _ args:eval_function_args? _")" { return {type:'eval_function',fun,args}}
+
+eval_function_args
+  = first:( e:(literal / field_name / eval_expr ) "," _ {return e})* last: (literal / field_name / eval_expr ) { return first.concat(last)}
+
+ // ----- Sort statement ---- 
+sort_statement
+  = _ SortToken ws+ fields:sort_fields { return { statement :'sort', fields} }
+
+sort_fields
+  = first:(s:sort_field "," _ {return s})* last:sort_field { return first.concat(last)}
+
+sort_field  = field:field_name_field order:("("_ o: ("asc" / "desc") _ ")" {return o })?  {return {field,order:order || 'desc'}}
+
+// --- First or Last statement -----
+first_or_last
+ = _ stmt:FirstOrLast (ws+)? count:number? { return {statement:stmt,count : count || 1} } 
+
+
+// ----- Filter statment -----
+
+filter_statement
+ = _ FilterToken ws+ filter:filter_logical_or { return { statement:'filter',filter }}
+
+filter_logical_or
+  = left:filter_logical_and ws+ "OR" ws+ right:filter_logical_or { return {type:'filter_bool', operator: "||", left:left, right:right} }
+  / filter_logical_and
+
+filter_logical_and
+  = left:filter_factor ws+ ("AND" ws+)? right:filter_logical_and { return {type:'filter_bool', operator: "&&", left:left, right:right} }
+  / filter_factor
+
+filter_factor
+  = "!" ws* operand:filter_factor { return {type: "NOT", operand: operand } }
+  / f_primary
+
+f_primary
+  = filter_expr
+  / "(" or:filter_logical_or ")" { return or; }
+
+filter_expr 
+  = filter_bool / filter_fun
+
+filter_operator "filter_operator" =  "=" / "!=" /  "<" / ">"
+
+filter_bool
+ = left:field_name _ operator:filter_operator _ right: ( literal / field_name) { return {type:'filter_bool',left,operator,right}} // has depency to filter rules [liternal/fieldname]
+
+filter_fun
+ = fun:filter_function_name "(" _ args:eval_function_args? _")" { return {type:'filter_function',fun,args:args || []}} // has depency to filter rules
+
+filter_function_name "filter_function_name"
+ = text
+
+// ------------ De-deup
+
+dedup_statment
+  = _ DedupToken ws+ fields:(first:(t:dedup_term "," _ {return t})* last:dedup_term {return first.concat(last)}) { return {statement:'dedup', fields}}
+
+dedup_term
+ = name:field_name_field { return { name }}
+
+// ------------ Statck ops
+
+stack_statement
+  = _ StackToken ws+ operation:stack_ops ws+ variable:text { return {statement:'stack',operation,variable}}
+
+stack_ops 
+  = "push" / "save" /"pop" / "pull" / "clear"
+
+// ------ join
+join_statment
+= _ JoinToken ws+ mode:(m:("full" / "left" / "right") ws+ {return m})? stack:text ws+ "on" ws+ left:text right:(_ "=" _ right:text {return right})? { return { statement :'join', mode: mode || 'full', stack,left,right:right||left}}
+
+// ------- lookup
+
+lookup_statement
+ = _ LookupToken ws+ field:string_or_text ws+ "then" ws+ action:( "merge" / "filter_merge" / "filter" / "list" ) ws+ "from" ws+ list:list_specify { return {statement:'lookup',field,action,list}}
+
+list_specify
+  = mode:(x:( "list" / "feed" / "asset_db" / "alliance" ) _ ":" {return x})?  _ name: string_or_text _ field: ( "(" _ f:string_or_text _ ")" {return f})? {return {mode,name,field}}
+
+// ---- load
+
+load_statement
+ = _ LoadToken ws+ type:( "csv" / "json" ) ws+ source: load_source_section destination:(ws+ O:load_dest_section { return O })? {  return { statement:'load', type,source,destination  } }
+
+load_source_section
+ = type: (s:( "file" / "url" ) _ ":" { return s } )? _ path: string_or_text {  return { type: type || "file", path } }
+
+load_dest_section
+ = to: ("search"/ "stack") spec:(ws+ spec: text { return spec})? { return {to:to || 'stack' ,spec}}
