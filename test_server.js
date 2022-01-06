@@ -11,7 +11,7 @@ const { Client } = require('@elastic/elasticsearch')
 const pgp = require('pg-promise')
 const {
   esNodeUrl = process.env.ES_STRING || 'http://devl.acl:9200',
-  dbURL = process.env.DB_QUERY || 'postgres://postgres:winwin@devl.acl.ai:5432/postgres',
+  dbURL = process.env.DB_QUERY ,
 
 } = {}
 
