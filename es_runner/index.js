@@ -18,8 +18,10 @@ async function executeQuery(client, body, { indices }) {
   }
   catch (err) {
     if (err.meta && err.meta.statusCode >= 400) {
+      console.log("ES Error: ",JSON.stringify(err))
       return { status: false, message: 'invalid request to data store', errorBody: err.meta.body }
     }
+    console.log("ES Error: ",err.toString())
     return { status: false, message: 'data store unavailable,' + err.toString() }
   }
 

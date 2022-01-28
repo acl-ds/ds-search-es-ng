@@ -10,6 +10,7 @@ const CONCURRENT_SHARDS = 5
 
 
 function createDSL(searchBody, aggregationBody, timePicker, { search_after, customerFilter }) {
+  
   const { index, query, size, order, timeField: tf, searchMode = 'default', bypassTimeFilter = false } = searchBody
   let { orderBy } = searchBody
   const { field: timeField = tf, filter: timeFilter = { gte: 'now-5d', lte: 'now' } } = timePicker
@@ -55,7 +56,7 @@ function createDSL(searchBody, aggregationBody, timePicker, { search_after, cust
     aggs,
     search_after,
   }
-
+  console.log("DSL -> ", JSON.stringify(DSL))
   return DSL
 }
 

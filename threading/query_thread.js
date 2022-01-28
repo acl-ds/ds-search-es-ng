@@ -20,7 +20,8 @@ const {
 const esClient = new Client({ node: esNodeUrl })
 const dbClient = pgp({})(dbURL)
 
-
+console.log("Inside query thread")
+console.log("Query", query)
 q_seq.executeQuery(query, timePicker, { ...options, esClient, dbClient })
   .then(r => parentPort.postMessage(r))
   .finally(()=>{
