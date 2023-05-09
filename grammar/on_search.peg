@@ -29,7 +29,7 @@ char
     { return sequence; }
 
 escape
-  = "\\"
+  = ""
 
 quotation_mark
   = '"'
@@ -301,8 +301,7 @@ sort_field  = field:field_name_field order:("("_ o: ("asc" / "desc") _ ")" {retu
 
 // --- First or Last statement -----
 first_or_last
- = _ stmt:FirstOrLast (ws+)? count:number? { return {statement:stmt,count : count || 1} } 
-
+ = _ stmt:FirstOrLast (ws+)? count:number? { return {statement:stmt,count : count || 1} }
 
 // ----- Filter statment -----
 
@@ -328,7 +327,7 @@ f_primary
 filter_expr 
   = filter_bool / filter_fun
 
-filter_operator "filter_operator" =  "=" / "!=" /  "<" / ">"
+filter_operator "filter_operator" =  "=" / "!=" / "<=" / ">=" / "<" / ">" 
 
 filter_bool
  = left:field_name _ operator:filter_operator _ right: ( literal / field_name) { return {type:'filter_bool',left,operator,right}} // has depency to filter rules [liternal/fieldname]
