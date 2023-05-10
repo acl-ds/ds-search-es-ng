@@ -18,4 +18,4 @@ const queryAsync = (queryObject) =>
     });
   });
 
-module.exports = { queryAsync, suggest, check };
+module.exports = { queryAsync, suggest, check,status:true };
