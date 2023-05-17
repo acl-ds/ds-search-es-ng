@@ -28,4 +28,3 @@ q_seq.executeQuery(query, timePicker, { ...options, esClient, dbClient })
     dbClient.$pool.end()
     esClient.close();
   })
-
