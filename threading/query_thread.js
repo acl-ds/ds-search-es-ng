@@ -27,4 +27,4 @@ q_seq.executeQuery(query, timePicker, { ...options, esClient, dbClient })
   .finally(()=>{
     dbClient.$pool.end()
     esClient.close();
-  })
+  }) 
