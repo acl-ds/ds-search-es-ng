@@ -10,7 +10,6 @@ function prepareQueryFilter(query) {
            .replace(/\\/g, "\\\\");
 
 }
-
 module.exports = {
   prepareQueryFilter /* : (q)=>{
     const c = prepareQueryFilter(q)

@@ -16,7 +16,6 @@ char
         '"'
       / "\\"
       / "/"
-      / "|"
       / "b" { return "\b"; }
       / "f" { return "\f"; }
       / "n" { return "\n"; }
@@ -301,7 +300,8 @@ sort_field  = field:field_name_field order:("("_ o: ("asc" / "desc") _ ")" {retu
 
 // --- First or Last statement -----
 first_or_last
- = _ stmt:FirstOrLast (ws+)? count:number? { return {statement:stmt,count : count || 1} }
+ = _ stmt:FirstOrLast (ws+)? count:number? { return {statement:stmt,count : count || 1} } 
+
 
 // ----- Filter statment -----
 
