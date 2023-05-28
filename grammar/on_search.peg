@@ -14,8 +14,9 @@ char
   / escape
     sequence:(
         '"'
-      / "\\"
+      / "\\"  
       / "/"
+      / "|"
       / "b" { return "\b"; }
       / "f" { return "\f"; }
       / "n" { return "\n"; }
@@ -28,7 +29,7 @@ char
     { return sequence; }
 
 escape
-  = ""
+  = "\\"
 
 quotation_mark
   = '"'
