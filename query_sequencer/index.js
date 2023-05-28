@@ -38,6 +38,7 @@ async function executeQuery(query, timePicker, options) {
   const parsedQuery = []
   let parseTook = 0
   try {
+    query=query.replace(/\\/g, "####")
     const parseStart = performance.now()
     parsedQuery.push(...parser.parse(query))
     parseTook = performance.now() - parseStart
