@@ -1,27 +1,9 @@
 const { isMainThread, parentPort, workerData } = require("worker_threads");
 
-// if (isMainThread)
-//   process.exit()
+if (isMainThread)
+  process.exit()
 
-const { query, timePicker, options } = {
-  query:
-    "search index=thanseer address.path=C:\\Users\\AnushaKP\\AppData\\Local\\Microsoft\\Teams\\current\\Teams.exe",
-  timePicker: {
-    filter: {
-      gte: "2022-12-31T18:30:00.000Z",
-      lte: "2023-05-28T10:36:46.367Z",
-      format: "strict_date_optional_time",
-    },
-    timeField: "@timestamp",
-  },
-  options: {
-    customerFilter: [
-      { terms: { tenant: ["00000000-0000-0000-0000-000000000000"] } },
-    ],
-    indices: [],
-  },
-};
-
+const { query, timePicker, options } = workerData 
 const { Client } = require("@elastic/elasticsearch");
 const pgp = require("pg-promise");
 
