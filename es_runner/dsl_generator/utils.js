@@ -3,7 +3,10 @@ function prepareQueryFilter(query) {
   if(query_arr[1]!==undefined)
   {
     if (query_arr[1].includes("####"))
-    query=`${query_arr[0]}="${query_arr[1]}"`.replace(/####/g, "\\\\") 
+    {
+    query=`${query_arr[0]}=`+`${query_arr[1]}`.replace(/####/g, "\\\\").replace(/:\\\\/g,"\\:\\\\").replace(/ +/g, '*');
+    }
+
   }
     return query
       .replace(/index\s*=/g, "_index=")
