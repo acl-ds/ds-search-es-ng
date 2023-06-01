@@ -1,21 +1,22 @@
-function prepareQueryFilter(query) {
-  const query_arr = query.split("=");
-  if(query_arr[1]!==undefined)
-  {
-    if (query_arr[1].includes("####"))
-    {
-    query=`${query_arr[0]}=`+`${query_arr[1]}`.replace(/####/g, "\\\\").replace(/:\\\\/g,"\\:\\\\").replace(/ +/g, '*');
-    }
-
+function prepareQueryFilter(query) {  
+  const new_path_regex = /!@#\$[^\/:?"<>|]:####[^\/:?"<>|]+!@#\$/;
+  path = query.match(new_path_regex);
+  if (path && path[0]) {
+    const new_path = path[0]
+      .replace(/####/g, "\\\\")
+      .replace(/:\\\\/g, "\\:\\\\")
+      .replace(/ +/g, "*")
+      .replace(/!@#\$/g, "");
+    query = query.replace(path[0], new_path);
   }
-    return query
-      .replace(/index\s*=/g, "_index=")
-      .replace(/\s*>\s*([^=])/g, ":>$1")
-      .replace(/\s*<\s*([^=])/g, ":<$1")
-      .replace(/\s*>=\s*/g, ":>=")
-      .replace(/\s*<=\s*/g, ":<=")
-      .replace(/\s*(\w+)\s*!=\s*/g, " NOT $1:")
-      .replace(/([^><])=/g, "$1:");
+  return query
+    .replace(/index\s*=/g, "_index=")
+    .replace(/\s*>\s*([^=])/g, ":>$1")
+    .replace(/\s*<\s*([^=])/g, ":<$1")
+    .replace(/\s*>=\s*/g, ":>=")
+    .replace(/\s*<=\s*/g, ":<=")
+    .replace(/\s*(\w+)\s*!=\s*/g, " NOT $1:")
+    .replace(/([^><])=/g, "$1:");
 }
 
 module.exports = {
