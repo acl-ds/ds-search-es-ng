@@ -42,11 +42,12 @@ async function executeQuery(query, timePicker, options) {
   const parsedQuery = [];
   let parseTook = 0;
   try {    
-    const path_regex = /"[^\/:?"<>|]:\\[^\/:?"<>|]+"/;
-    const path = query.match(path_regex)
-    if (path&&path[0]) {
-      const new_path = path[0].replace(/"/g, "!@#$").replace(/\\/g, "####");
-      query = query.replace(path[0], new_path);
+    const path_regex = /""[^\/?"<>|]+""/g;
+    let paths = query.match(path_regex)        
+    for (const path of paths)
+    {
+      const new_path = path.replace(/""/g, "!@#").replace(/\\/g,"####");
+      query = query.replace(path, new_path);
     }
     console.log(query);
     const parseStart = performance.now();
