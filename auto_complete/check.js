@@ -1,30 +1,25 @@
-
-
-const { parse } = require('../grammar')
+const { parse } = require("../grammar");
 
 async function check(query) {
   try {
-    const query_arr=query.split("=")
-    if(query_arr[2]!==undefined)
-{
-    if(query_arr[2].includes("\\"))
-    {
-        query=query_arr[0]+"="+query_arr[1]+"="+(query_arr[2].replace(/\\/g,"####").replace(/"/g,""))
-    
-    }
-}
+    const path_regex = /""[^\/?"<>|]+""/g;
+    let paths = query.match(path_regex);
+    if (paths)
+      for (const path of paths) {
+        const new_path = path.replace(/""/g, "!@#").replace(/\\/g, "####");
+        query = query.replace(path, new_path);
+      }
 
-    parse(query)
+    parse(query);
     return {
-      error: false
-    }
-  }
-  catch (e) {
+      error: false,
+    };
+  } catch (e) {
     return {
       error: true,
-      message: e.message
-    }
+      message: e.message,
+    };
   }
 }
 
-module.exports = check
+module.exports = check;
