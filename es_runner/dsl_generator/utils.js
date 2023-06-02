@@ -2,6 +2,7 @@ function prepareQueryFilter(query) {
   const new_path_regex = /!@#[^\/?"<>|!@]+!@#/g;
 
   paths = query.match(new_path_regex);
+  if(paths)
   for (const path of paths) {
     const new_path = path
       .replace(/####/g, "\\\\")

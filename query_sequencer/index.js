@@ -43,7 +43,8 @@ async function executeQuery(query, timePicker, options) {
   let parseTook = 0;
   try {    
     const path_regex = /""[^\/?"<>|]+""/g;
-    let paths = query.match(path_regex)        
+    let paths = query.match(path_regex)    
+    if(paths)    
     for (const path of paths)
     {
       const new_path = path.replace(/""/g, "!@#").replace(/\\/g,"####");
