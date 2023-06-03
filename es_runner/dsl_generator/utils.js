@@ -8,11 +8,12 @@ function prepareQueryFilter(query) {
       .replace(/####/g, "\\\\")
       .replace(/:\\\\/g, "\\:\\\\")
       .replace(/ +/g, "*")
-      .replace(/!@#/g, "");
-    query = query.replace(path, new_path);
+      .replace(/!@#/g, "")
+      .replace(/\(|\)/g, "*");
+    query = query.replace(path, new_path)
   }
   return query
-    .replace(/\(|\)/g, "*")
+  
     .replace(/index\s*=/g, "_index=")
     .replace(/\s*>\s*([^=])/g, ":>$1")
     .replace(/\s*<\s*([^=])/g, ":<$1")
