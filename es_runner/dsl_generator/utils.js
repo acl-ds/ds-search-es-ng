@@ -1,5 +1,5 @@
 function prepareQueryFilter(query) {
-  const new_path_regex = /!@#[^\/?"<>|!@]+!@#/g;
+  const new_path_regex = /!@#+((?!!@#).)+!@#/g;
 
   paths = query.match(new_path_regex);
   if(paths)
