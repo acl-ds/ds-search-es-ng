@@ -42,7 +42,7 @@ async function executeQuery(query, timePicker, options) {
   const parsedQuery = [];
   let parseTook = 0;
   try {    
-    const path_regex = /""[^\/?"<>|]+""/g;
+    const path_regex =/""+((?!"").)+""/g;
     let paths = query.match(path_regex)    
     if(paths)    
     for (const path of paths)
