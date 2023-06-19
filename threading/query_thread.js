@@ -10,7 +10,7 @@ const pgp = require("pg-promise");
 const q_seq = require("../query_sequencer");
 
 const {
-  esNodeUrl = process.env.ES_STRING1 || "http://localhost:9201",
+  esNodeUrl = process.env.ES_STRING2 || "http://localhost:9202",
   dbURL = process.env.DB_QUERY ||
     "postgres://postgres:winwin@localhost:5432/postgres",
 } = options;
