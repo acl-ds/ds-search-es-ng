@@ -14,7 +14,7 @@ char
   / escape
     sequence:(
         '"'
-      / "\\"  
+      / "\\"
       / "/"
       / "|"
       / "b" { return "\b"; }
@@ -127,7 +127,7 @@ statment
 
 // Named fields_types - for auto complete
 
-index_name_field "index_name" = string / chars:[0-9a-z-_\*\.]+ { return chars.join("")}
+index_name_field "index_name" = string / chars:[0-9a-z-_\*\.^X]+ { return chars.join("")}
 field_name_field "gen_field_name" = string_or_text
 text_field_name "text_field_name" = string_or_text
 numeric_field_name "num_field_name" = string_or_text
@@ -269,8 +269,9 @@ eval_expr_statment
 
 eval_expr =  eval_function / binary_expr 
 
-binary_operator "binary_operator" = "+" / "-" / "*" / "/"
+// binary_operator "binary_operator" = "=" / "+" / "-" / "*" / "/"
 
+binary_operator "binary_operator" = "==" / "!=" / "<=" / ">=" / "<" / ">" 
 binary_expr
   = left:binary_expr_seq _ operator:binary_operator _ right:binary_expr_seq  { return {type:'binary_expression',left,operator,right}}
 
@@ -288,7 +289,14 @@ eval_function
   = fun:eval_function_name "(" _ args:eval_function_args? _")" { return {type:'eval_function',fun,args}}
 
 eval_function_args
-  = first:( e:(literal / field_name / eval_expr ) "," _ {return e})* last: (literal / field_name / eval_expr ) { return first.concat(last)}
+  = first:( e:(eval_expr / literal / field_name  ) "," _ {return e})* last: (eval_expr / literal / field_name  ) { 
+    if(typeof first==="string" && typeof last==="string")
+    { return first.concat(last)}
+    if(Array.isArray(last))
+    return [...first,...last]    
+    else 
+    return [...first,last]    
+    }
 
  // ----- Sort statement ---- 
 sort_statement
