@@ -271,7 +271,7 @@ eval_expr =  eval_function / binary_expr
 
 // binary_operator "binary_operator" = "=" / "+" / "-" / "*" / "/"
 
-binary_operator "binary_operator" = "==" / "!=" / "<=" / ">=" / "<" / ">" 
+binary_operator "binary_operator" = "==" / "!=" / "<=" / ">=" / "<" / ">" / "=" / "+" / "-" / "*" / "/"
 binary_expr
   = left:binary_expr_seq _ operator:binary_operator _ right:binary_expr_seq  { return {type:'binary_expression',left,operator,right}}
 
