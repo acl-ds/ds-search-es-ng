@@ -267,7 +267,7 @@ eval_expr_statment_seq
 eval_expr_statment
  = out:any_field _ "="_ exp:eval_expr { return { out, exp }}
 
-eval_expr =  eval_function / binary_expr 
+eval_expr =  binary_expr / eval_function
 
 // binary_operator "binary_operator" = "=" / "+" / "-" / "*" / "/"
 
