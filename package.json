@@ -25,6 +25,7 @@
     "lodash": "^4.17.19",
     "moment-timezone": "^0.5.31",
     "mustache": "^4.0.1",
+    "numeral": "^2.0.6",
     "pg-promise": "^10.6.1"
   }
 }
