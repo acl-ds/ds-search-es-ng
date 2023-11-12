@@ -51,8 +51,8 @@ function createDSL(searchBody, aggregationBody, timePicker, { search_after, cust
         filter
       },
     },
-    size: aggs ? 0 : size,
-    from: aggs ? 0 : from,
+    size: aggs ? 0 : size===null?undefined:size,
+    from: aggs ? 0 : from===null?undefined:from,
     sort: orderBy && order ? [{ [orderBy]: { order, } }] : undefined,
     aggs,
     search_after,
