@@ -32,7 +32,7 @@ function filter_expr(filter, item, options) {
   else if (type === 'literal')
     return filter.value
   else if (type === 'field_name')
-    return item[filter.name] || false
+    return item[filter.name] 
   else
     return filter
 }
