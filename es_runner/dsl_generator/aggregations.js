@@ -13,7 +13,7 @@ function createColName(specs) {
   return name
 }
 
-function prepareTermClause({ field, size = 500, orderBy = "_count", order = "desc" }) {
+function prepareTermClause({ field, size = 100, orderBy = "_count", order = "desc" }) {
   return {
     terms: {
       field,
