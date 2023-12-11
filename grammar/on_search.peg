@@ -175,7 +175,7 @@ indexText
 
 
 searchSpecs
-  = sp: ( sizeText / orderText / timeField / searchMode/ bypassTS )* { return sp.reduce( (final,spec) => ({...final,...spec}), {query:'*',size:25,order:'desc',orderBy:'@timestamp',timeField:'@timestamp',searchMode:'default',bypassTimeFilter:false,}) }
+  = sp: ( sizeText / orderText / timeField / searchMode/ bypassTS )* { return sp.reduce( (final,spec) => ({...final,...spec}), {query:'*',size:null,order:'desc',orderBy:'@timestamp',timeField:'@timestamp',searchMode:'default',bypassTimeFilter:false,}) }
 
 
 lQuery "mini_filter"
