@@ -14,7 +14,7 @@ function prepareQueryFilter(query) {
       query = query.replace(path, new_path);
     }
   return query
-    .replace(/index\s*=/g, "_index=")
+    .replace(/ index\s*=/g," _index=")
     .replace(/\s*>\s*([^=])/g, ":>$1")
     .replace(/\s*<\s*([^=])/g, ":<$1")
     .replace(/\s*>=\s*/g, ":>=")
