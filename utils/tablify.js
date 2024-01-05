@@ -43,7 +43,8 @@ function processARow(root, data, template) {
             value.key = `${value.key}`
         }
 
-        const t = { ...template, [name]: value.key, ...singleValueFields, interval, count: value.count }
+        // const t = { ...template, [name]: value.key, ...singleValueFields, interval, count: value.count }
+        const t = { [name]: value.key, ...singleValueFields, interval,...template, count: value.count}
         processARow(value, data, t)
       });
     })
