@@ -5,11 +5,11 @@ function prepareQueryFilter(query) {
   if (paths)
     for (const path of paths) {
       const new_path = path
-        .replace(/!@#/g, "")
+        .replace(/!@#/g, '""')
         .replace(/####/g, "\\\\")
         .replace(/:/g, "\\:")
         .replace(/\//g, "\\/")
-        .replace(/ +/g, "*")
+        // .replace(/ +/g, "*")
         .replace(/\(|\)/g, "*");
       query = query.replace(path, new_path);
     }
