@@ -5,11 +5,11 @@ function prepareQueryFilter(query) {
   if (paths)
     for (const path of paths) {
       const new_path = path
-        .replace(/!@#/g, '""')
+        .replace(/!@#!@#/g, "")
         .replace(/####/g, "\\\\")
         .replace(/:/g, "\\:")
         .replace(/\//g, "\\/")
-        // .replace(/ +/g, "*")
+        .replace(/ /g, '\\ ')
         .replace(/\(|\)/g, "*");
       query = query.replace(path, new_path);
     }
@@ -20,7 +20,8 @@ function prepareQueryFilter(query) {
     .replace(/\s*>=\s*/g, ":>=")
     .replace(/\s*<=\s*/g, ":<=")
     .replace(/\s*(\w+)\s*!=\s*/g, " NOT $1:")
-    .replace(/([^><])=/g, "$1:");
+    .replace(/([^><])=/g, "$1:")
+    .replace(/!@#/g, '\\"');
 }
 
 module.exports = {
