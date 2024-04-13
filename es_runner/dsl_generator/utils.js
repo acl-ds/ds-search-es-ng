@@ -7,10 +7,7 @@ function prepareQueryFilter(query) {
       const new_path = path
         .replace(/!@#!@#/g, "")
         .replace(/####/g, "\\\\")
-        .replace(/:/g, "\\:")
-        .replace(/\//g, "\\/")
-        .replace(/ /g, '\\ ')
-        .replace(/\(|\)/g, "*");
+        .replace(/(:|\/| |\(|\))/g, "\\$&")        
       query = query.replace(path, new_path);
     }
   return query
