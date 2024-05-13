@@ -52,11 +52,11 @@ async function executeQuery(query, timePicker, options) {
       });
       for (i = 0; i < new_path.length; i++) {
         let path;
-        if (new_path[i] !== rvrs_new_path[i]) {
+        if (new_path[i] !== rvrs_new_path[rvrs_new_path.length-i-1]) {
           path = `${new_path[i].slice(
             0,
             new_path[i].length / 2 + 1
-          )}${rvrs_new_path[i].slice(rvrs_new_path[i].length / 2)}`;
+          )}${rvrs_new_path[rvrs_new_path.length-i-1].slice(rvrs_new_path[rvrs_new_path.length-i-1].length / 2)}`;
         } else path = new_path[i];
         query = query.replace(
           path,
