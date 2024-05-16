@@ -13,7 +13,7 @@ function createColName(specs) {
   return name
 }
 
-function prepareTermClause({ field, size = 500, orderBy = "_count", order = "desc" }) {
+function prepareTermClause({ field, size = 150, orderBy = "_count", order = "desc" }) {
   return {
     terms: {
       field,
@@ -23,7 +23,7 @@ function prepareTermClause({ field, size = 500, orderBy = "_count", order = "des
   }
 }
 
-function prepareHistogramClause({ field, interval = 500, min_doc_count = 0 }) {
+function prepareHistogramClause({ field, interval = 150, min_doc_count = 0 }) {
   return {
     histogram: {
       field,
