@@ -19,7 +19,7 @@ function createDSL(searchBody, aggregationBody, timePicker, { search_after, cust
   const queryString = `_index : (${index.split(',').join(' OR ')})${query !== '*' ? ' AND ( ' + prepareQueryFilter(query) + ' )' : ''}`
 
 
-  const aggs = aggregationBody ? prepareAggregations(aggregationBody) : undefined
+  const aggs = aggregationBody ? prepareAggregations(aggregationBody,size) : undefined
 
   const filter = []
   if (!bypassTimeFilter) {
@@ -59,7 +59,7 @@ function createDSL(searchBody, aggregationBody, timePicker, { search_after, cust
     search_after,
   }
   console.log("DSL -> ", JSON.stringify(DSL))
-  return DSL
+  return {DSL,size}
 }
 
 module.exports = { createDSL, prepareQueryFilter }

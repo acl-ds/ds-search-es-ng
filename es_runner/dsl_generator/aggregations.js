@@ -13,12 +13,10 @@ function createColName(specs) {
   return name
 }
 
-function prepareTermClause({ field, size = 150, orderBy = "_count", order = "desc" }) {
+function prepareTermClause({ field }) {
   return {
-    terms: {
-      field,
-      size,
-      order: { [orderBy]: order }
+    terms:{
+      field
     }
   }
 }
@@ -66,11 +64,17 @@ function getByAggregationDSL({ mode, ...specs }) {
   }
 }
 
-function getAggregation(name, body, aggs) {
+function getAggregation(name, body, aggs,mode,size) {
+  if (mode === "terms") {
+    let sources = [];
+    if (aggs.composite_agg) sources = aggs.composite_agg.composite.sources;
+    sources.push({[name]:body});
+    return { composite_agg: { composite: { size: size>10000?10000:size, sources } } };
+  }
   return { [name]: { ...body, aggs: aggs } }
 }
 
-function prepareAggregations(aggregationBody) {
+function prepareAggregations(aggregationBody,size) {
   const { metric, by = [] } = aggregationBody
 
   let aggregations = getMetricPartDSL(metric)
@@ -78,7 +82,7 @@ function prepareAggregations(aggregationBody) {
   if(by){
 
     by.forEach(byTerm => {
-      aggregations = getAggregation(createColName(byTerm), getByAggregationDSL(byTerm), aggregations)
+      aggregations = getAggregation(createColName(byTerm), getByAggregationDSL(byTerm), aggregations,byTerm.mode,size)
     });
   }
 

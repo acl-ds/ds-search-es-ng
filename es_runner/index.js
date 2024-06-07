@@ -4,7 +4,16 @@ const { performance } = require('perf_hooks')
 const { createDSL } = require('./dsl_generator')
 const { tablify } = require('../utils/tablify')
 
-async function executeQuery(client, body, { indices }) {
+let aggsSizeHistory = [];
+
+function findAggsSize(size) {
+  aggsSum = aggsSizeHistory.reduce((a, b) => a + b, 0);
+  if (aggsSum >= size) return 0;
+  if (size - aggsSum > 10000) return 10000;
+  return size - aggsSum;
+}
+
+async function executeQuery(fresh,client, body, { indices },size) {
   if (!client)
     return { status: false, message: 'client not configured' }
 
@@ -23,6 +32,37 @@ async function executeQuery(client, body, { indices }) {
     }
     console.log("ES Error: ",err.toString())
     return { status: false, message: 'data store unavailable,' + err.toString() }
+  }
+  if (
+    resultFromES.body.aggregations &&
+    resultFromES.body.aggregations.composite_agg &&
+    resultFromES.body.aggregations.composite_agg.after_key &&
+    body.aggs.composite_agg.composite.size < size
+  ) {
+    if(fresh)
+      aggsSizeHistory.push(body.aggs.composite_agg.composite.size)
+    body.aggs.composite_agg.composite.after =
+      resultFromES.body.aggregations.composite_agg.after_key;
+
+    body.aggs.composite_agg.composite.size =
+      aggsSizeHistory[aggsSizeHistory.push(findAggsSize(size)) - 1];
+    
+    if (body.aggs.composite_agg.composite.size > 0) {
+      const { result, took, status } = await executeQuery(
+        false,
+        client,
+        body,
+        { indices },
+        size
+      );
+      if (status === true) {
+        resultFromES.body.took += took;
+        resultFromES.body.aggregations.composite_agg.buckets =
+          resultFromES.body.aggregations.composite_agg.buckets.concat(
+            result.aggregations.composite_agg.buckets
+          );
+      }
+    }
   }
 
 
@@ -74,10 +114,11 @@ function processAggregatedResults(aggregations) {
 
 async function process(searchBody, aggreagationBody, timePicker, options) {
   const parseStartTime = performance.now()
-  const ES_DSL = createDSL(searchBody, aggreagationBody, timePicker, options)
+  const {size,DSL} = createDSL(searchBody, aggreagationBody, timePicker, options)
   const DSLCreationTook = performance.now() - parseStartTime
   const { esClient, shouldTablify = true } = options
-  const { result, took, status, errorBody } = await executeQuery(esClient, ES_DSL, options)
+  aggsSizeHistory = [];
+  const { result, took, status, errorBody } = await executeQuery(true,esClient, DSL, options,size)
   const processingStartTime = performance.now()
   const data = []
   if (status === true) {
