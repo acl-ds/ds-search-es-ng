@@ -129,7 +129,7 @@ async function process(searchBody, aggreagationBody, timePicker, options) {
         data.push(result.hits)
       } else {
         if (shouldTablify)
-          data.push(...tablify(processAggregatedResults(result.aggregations)))
+          data.push(...tablify(processAggregatedResults(result.aggregations.composite_agg || result.aggregations)))
         else
           data.push(processAggregatedResults(result.aggregations))
       }
