@@ -66,9 +66,10 @@ async function executeQuery(fresh, client, body, { indices }, size) {
         if (status === true) {
           resultFromES.body.took += took;
           resultFromES.body.aggregations.composite_agg.buckets =
+          populateCompostiteAggsData(
             resultFromES.body.aggregations.composite_agg.buckets.concat(
               result.aggregations.composite_agg.buckets
-            );
+            ))
         }
       }
     }
