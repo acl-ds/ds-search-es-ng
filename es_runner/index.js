@@ -3,10 +3,10 @@ const { performance } = require("perf_hooks");
 const { createDSL } = require("./dsl_generator");
 const { tablify } = require("../utils/tablify");
 
-let aggsSizeHistory = [];
 
-function findAggsSize(size) {
-  aggsSum = aggsSizeHistory.reduce((a, b) => a + b, 0);
+
+function findAggsSize(size,bucketSizeHistory) {
+  aggsSum = bucketSizeHistory.reduce((a, b) => a + b, 0);
   if (aggsSum >= size) return 0;
   if (size - aggsSum > 10000) return 10000;
   return size - aggsSum;
@@ -17,7 +17,7 @@ function populateCompostiteAggsData(aggsData) {
     return { ...item.key, count: item.doc_count };
   });
 }
-async function executeQuery(fresh, client, body, { indices }, size) {
+async function executeQuery(fresh, client, body, { indices }, size,bucketSizeHistory=[]) {
   if (!client) return { status: false, message: "client not configured" };
 
   let resultFromES = {};
@@ -48,12 +48,12 @@ async function executeQuery(fresh, client, body, { indices }, size) {
     resultFromES.body.aggregations.composite_agg.after_key
   ) {
     if (body.aggs.composite_agg.composite.size < size) {
-      if (fresh) aggsSizeHistory.push(body.aggs.composite_agg.composite.size);
+      if (fresh) bucketSizeHistory.push(body.aggs.composite_agg.composite.size);
       body.aggs.composite_agg.composite.after =
         resultFromES.body.aggregations.composite_agg.after_key;
   
       body.aggs.composite_agg.composite.size =
-        aggsSizeHistory[aggsSizeHistory.push(findAggsSize(size)) - 1];
+      bucketSizeHistory[bucketSizeHistory.push(findAggsSize(size,bucketSizeHistory)) - 1];
   
       if (body.aggs.composite_agg.composite.size > 0) {
         const { result, took, status } = await executeQuery(
@@ -61,7 +61,8 @@ async function executeQuery(fresh, client, body, { indices }, size) {
           client,
           body,
           { indices },
-          size
+          size,
+          bucketSizeHistory
         );
         if (status === true) {
           resultFromES.body.took += took;
