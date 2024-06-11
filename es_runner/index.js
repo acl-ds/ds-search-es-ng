@@ -159,7 +159,6 @@ async function process(searchBody, aggreagationBody, timePicker, options) {
   );
   const DSLCreationTook = performance.now() - parseStartTime;
   const { esClient, shouldTablify = true } = options;
-  aggsSizeHistory = [];
   const { result, took, status, errorBody } = await executeQuery(
     true,
     esClient,
