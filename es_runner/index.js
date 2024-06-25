@@ -17,6 +17,15 @@ function populateCompostiteAggsData(aggsData) {
     return { ...item.key, count: item.doc_count };
   });
 }
+
+function filterBuckets(buckets, gte, lte) {
+  const startTime = new Date(gte).getTime();
+  const endTime = new Date(lte).getTime();
+  return buckets.filter((bucket) => {    
+    return bucket.key >= startTime && bucket.key <= endTime;
+  });
+}
+
 async function executeQuery(fresh, client, body, { indices }, size,  isHistogram,bucketSizeHistory=[]) {
   if (!client) return { status: false, message: "client not configured" };
 
