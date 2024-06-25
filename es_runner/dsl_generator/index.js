@@ -4,6 +4,41 @@ const { prepareAggregations } = require('./aggregations')
 
 const { prepareQueryFilter } = require('./utils')
 
+const datemath=require("@elastic/datemath")
+
+
+function isValidUTC(utcString) {
+  const date = new Date(utcString);
+
+  if (isNaN(date.getTime())) {
+    return false;
+  }
+
+  const isoString = date.toISOString();
+  return isoString === utcString;
+}
+
+function convertTimeIfNotation(date) {
+  if(isValidUTC(date))
+    {
+      return date
+    }
+    else {
+      const parsedDate=datemath.parse(date)
+      return parsedDate._isValid?parsedDate.toISOString():new Date().toISOString()
+    }
+}
+
+function preparetimeFilter(timeFilter) {
+  const { gte, lte } = timeFilter;
+  if (gte && lte) {
+    return {
+      gte: convertTimeIfNotation(gte),
+      lte: convertTimeIfNotation(lte),
+    };
+  } else timeFilter;
+}
+
 const BATCH_REDUCE_SIZE = 128
 const CONCURRENT_SHARDS = 5
 
@@ -32,7 +67,7 @@ function createDSL(searchBody, aggregationBody, timePicker, { search_after, cust
   if (!bypassTimeFilter) {
     filter.push({
       range: {
-        [timeField]: timeFilter
+        [timeField]: preparetimeFilter(timeFilter)
       }
     })
   }
