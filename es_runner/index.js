@@ -51,7 +51,7 @@ async function executeQuery(fresh, client, body, { indices }, size,  isHistogram
       message: "data store unavailable," + err.toString(),
     };
   }
-  if (isHistogram) {
+  if (isHistogram &&  body.query.bool.filter[0]) {
     resultFromES.body.aggregations["@timestamp"].buckets  = filterBuckets(
       resultFromES.body.aggregations["@timestamp"].buckets || [],
       body.query.bool.filter[0].range["@timestamp"].gte,
