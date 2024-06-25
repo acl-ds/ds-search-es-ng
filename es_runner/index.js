@@ -17,7 +17,7 @@ function populateCompostiteAggsData(aggsData) {
     return { ...item.key, count: item.doc_count };
   });
 }
-async function executeQuery(fresh, client, body, { indices }, size,bucketSizeHistory=[]) {
+async function executeQuery(fresh, client, body, { indices }, size,  isHistogram,bucketSizeHistory=[]) {
   if (!client) return { status: false, message: "client not configured" };
 
   let resultFromES = {};
@@ -42,6 +42,13 @@ async function executeQuery(fresh, client, body, { indices }, size,bucketSizeHis
       message: "data store unavailable," + err.toString(),
     };
   }
+  if (isHistogram) {
+    resultFromES.body.aggregations["@timestamp"].buckets  = filterBuckets(
+      resultFromES.body.aggregations["@timestamp"].buckets || [],
+      body.query.bool.filter[0].range["@timestamp"].gte,
+      body.query.bool.filter[0].range["@timestamp"].lte
+    );
+  }
   if (
     resultFromES.body.aggregations &&
     resultFromES.body.aggregations.composite_agg &&
@@ -62,6 +69,7 @@ async function executeQuery(fresh, client, body, { indices }, size,bucketSizeHis
           body,
           { indices },
           size,
+          isHistogram,
           bucketSizeHistory
         );
         if (status === true) {
@@ -151,7 +159,7 @@ function processAggregatedResults(aggregations) {
 
 async function process(searchBody, aggreagationBody, timePicker, options) {
   const parseStartTime = performance.now();
-  const { size, DSL } = createDSL(
+  const { size, DSL, isHistogram } = createDSL(
     searchBody,
     aggreagationBody,
     timePicker,
@@ -164,7 +172,8 @@ async function process(searchBody, aggreagationBody, timePicker, options) {
     esClient,
     DSL,
     options,
-    size
+    size,
+    isHistogram
   );
   const processingStartTime = performance.now();
   let data = [];
