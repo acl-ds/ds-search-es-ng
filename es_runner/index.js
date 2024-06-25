@@ -52,7 +52,8 @@ async function executeQuery(fresh, client, body, { indices }, size,  isHistogram
     };
   }
   if (isHistogram &&  body.query.bool.filter[0]) {
-    resultFromES.body.aggregations["@timestamp"].buckets  = filterBuckets(
+      const aggsField=Object.keys(resultFromES.body.aggregations)[0]
+      resultFromES.body.aggregations[aggsField].buckets  = filterBuckets(
       resultFromES.body.aggregations["@timestamp"].buckets || [],
       body.query.bool.filter[0].range["@timestamp"].gte,
       body.query.bool.filter[0].range["@timestamp"].lte
