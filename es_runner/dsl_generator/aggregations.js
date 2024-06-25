@@ -82,6 +82,9 @@ function prepareAggregations(aggregationBody,size) {
   if(by){
 
     by.forEach(byTerm => {
+      if (byTerm.mode === "time_series" || byTerm.mode === "histogram") {
+        aggregationBody.isHistogram = true;
+      }
       aggregations = getAggregation(createColName(byTerm), getByAggregationDSL(byTerm), aggregations,byTerm.mode,size)
     });
   }
@@ -89,7 +92,7 @@ function prepareAggregations(aggregationBody,size) {
 
 
 
-  return aggregations
+  return {aggregations,isHistogram:aggregationBody.isHistogram};
 
 }
 
