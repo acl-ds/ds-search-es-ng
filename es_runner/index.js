@@ -11,10 +11,18 @@ function findAggsSize(size,bucketSizeHistory) {
   if (size - aggsSum > 10000) return 10000;
   return size - aggsSum;
 }
-
+function convertEpochtoUTC(item)
+{
+  if(item.key['@timestamp'])
+  {
+    return {
+      '@timestamp':new Date(item.key['@timestamp']).toISOString()
+    }
+  }
+}
 function populateCompostiteAggsData(aggsData) {
   return aggsData.map((item) => {
-    return { ...item.key, count: item.doc_count };
+    return { ...item.key, count: item.doc_count,...convertEpochtoUTC(item) };
   });
 }
 
