@@ -11,18 +11,28 @@ function findAggsSize(size,bucketSizeHistory) {
   if (size - aggsSum > 10000) return 10000;
   return size - aggsSum;
 }
-function convertEpochtoUTC(item)
+function convertEpochtoUTC(item,aggreagationBody)
 {
-  if(item.key['@timestamp'])
-  {
-    return {
-      '@timestamp':new Date(item.key['@timestamp']).toISOString()
-    }
+  const data = {};
+  if (item.key["@timestamp"]) {
+    data["@timestamp"] = new Date(item.key["@timestamp"]).toISOString();
   }
+  if (item.key["timestamp"]) {
+    data["timestamp"] = new Date(item.key["timestamp"]).toISOString();
+  }
+  if(aggreagationBody);
+  {
+    aggreagationBody.by.map((byTerm) => {
+      if (item.key[byTerm.name]) {
+        data[byTerm.name] = new Date(item.key[byTerm.name]).toISOString();
+      }
+    });
+  }
+  return data
 }
-function populateCompostiteAggsData(aggsData) {
+function populateCompostiteAggsData(aggsData,aggreagationBody) {
   return aggsData.map((item) => {
-    return { ...item.key, count: item.doc_count,...convertEpochtoUTC(item) };
+    return { ...item.key, count: item.doc_count,...convertEpochtoUTC(item,aggreagationBody) };
   });
 }
 
@@ -34,7 +44,7 @@ function filterBuckets(buckets, gte, lte) {
   });
 }
 
-async function executeQuery(fresh, client, body, { indices }, size,  isHistogram,bucketSizeHistory=[]) {
+async function executeQuery(fresh, client, body, { indices }, size, aggreagationBody, isHistogram,bucketSizeHistory=[]) {
   if (!client) return { status: false, message: "client not configured" };
 
   let resultFromES = {};
@@ -87,6 +97,7 @@ async function executeQuery(fresh, client, body, { indices }, size,  isHistogram
           body,
           { indices },
           size,
+          aggreagationBody,
           isHistogram,
           bucketSizeHistory
         );
@@ -96,14 +107,14 @@ async function executeQuery(fresh, client, body, { indices }, size,  isHistogram
           populateCompostiteAggsData(
             resultFromES.body.aggregations.composite_agg.buckets.concat(
               result.aggregations.composite_agg.buckets
-            ))
+            ),aggreagationBody)
         }
       }
     }
     else{
       resultFromES.body.aggregations.composite_agg.buckets =
       populateCompostiteAggsData(
-        resultFromES.body.aggregations.composite_agg.buckets
+        resultFromES.body.aggregations.composite_agg.buckets,aggreagationBody
       );
     }
   
@@ -191,6 +202,7 @@ async function process(searchBody, aggreagationBody, timePicker, options) {
     DSL,
     options,
     size,
+    aggreagationBody,
     isHistogram
   );
   const processingStartTime = performance.now();
