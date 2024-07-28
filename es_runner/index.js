@@ -23,7 +23,7 @@ function convertEpochtoUTC(item,aggreagationBody)
   if(aggreagationBody);
   {
     aggreagationBody.by.map((byTerm) => {
-      if (item.key[byTerm.name]) {
+      if (item.key[byTerm.name] && ["@timestamp","timestamp"].includes(byTerm.field)) {
         data[byTerm.name] = new Date(item.key[byTerm.name]).toISOString();
       }
     });
