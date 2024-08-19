@@ -64,14 +64,18 @@ function getByAggregationDSL({ mode, ...specs }) {
   }
 }
 
-function getAggregation(name, body, aggs,mode,size) {
-  if (mode === "terms") {
+function getAggregation(name, body, aggs, metric,isHistogram, size) {
+  if (metric === "count" && !isHistogram) {
     let sources = [];
     if (aggs.composite_agg) sources = aggs.composite_agg.composite.sources;
-    sources.push({[name]:body});
-    return { composite_agg: { composite: { size: size>10000?10000:size, sources } } };
+    sources.push({ [name]: body });
+    return {
+      composite_agg: {
+        composite: { size: size > 10000 ? 10000 : size, sources },
+      },
+    };
   }
-  return { [name]: { ...body, aggs: aggs } }
+  return { [name]: { ...body, aggs: aggs } };
 }
 
 function prepareAggregations(aggregationBody,size) {
@@ -85,7 +89,7 @@ function prepareAggregations(aggregationBody,size) {
       if (byTerm.mode === "time_series" || byTerm.mode === "histogram") {
         aggregationBody.isHistogram = true;
       }
-      aggregations = getAggregation(createColName(byTerm), getByAggregationDSL(byTerm), aggregations,byTerm.mode,size)
+      aggregations = getAggregation(createColName(byTerm), getByAggregationDSL(byTerm), aggregations,aggregationBody.metric,aggregationBody.isHistogram,size)
     });
   }
 
