@@ -17,7 +17,7 @@ function prepareQueryFilter(query) {
     .replace(/\s*<\s*([^=])/g, ":<$1")
     .replace(/\s*>=\s*/g, ":>=")
     .replace(/\s*<=\s*/g, ":<=")
-    .replace(/\s*(\w+)\s*!=\s*/g, " NOT $1:")
+    .replace(/\s*(\w.+)\s*!=\s*/g, " NOT $1:")
     .replace(/([^><])=/g, "$1:")
     .replace(/!@#/g, '\\\"');
 }
