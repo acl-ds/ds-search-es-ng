@@ -77,6 +77,7 @@ async function populateCompostiteAggsData(aggsData,aggreagationBody,index,esClie
       ...convertDate,
     })
   }
+  return data
 }
 
 function filterBuckets(buckets, gte, lte) {
@@ -112,8 +113,8 @@ async function executeQuery(fresh,index, client, body, { indices }, size, aggrea
       message: "data store unavailable," + err.toString(),
     };
   }
-  if (isHistogram &&  body.query.bool.filter[0]) {
-      const aggsField=Object.keys(resultFromES.body.aggregations)[0]
+  if (isHistogram &&  body.query.bool.filter[0] && resultFromES.body.aggregations) {
+      const aggsField=Object.keys(resultFromES.body?.aggregations)[0]
       resultFromES.body.aggregations[aggsField].buckets  = filterBuckets(
       resultFromES.body.aggregations[aggsField].buckets || [],
       body.query.bool.filter[0].range["@timestamp"].gte,
@@ -258,7 +259,7 @@ async function process(searchBody, aggreagationBody, timePicker, options) {
       if (aggreagationBody.metric === "count" && !aggreagationBody.by) {
         data.push(result.hits);
       } else {
-        if (result.aggregations.composite_agg)
+        if (result.aggregations?.composite_agg)
           data = result.aggregations.composite_agg.buckets;
         else if (shouldTablify)
           data.push(...tablify(processAggregatedResults(result.aggregations)));
