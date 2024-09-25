@@ -51,7 +51,7 @@ async function convertEpochtoUTC(item,aggreagationBody,index,esClient)
         const Fields=fetchDateTypeFields(
           body[index]?.mappings?.properties
         ).flat(Infinity)
-        if(Fields.includes(byTerm.field) && isNumber(item.key[byTerm.name]))
+        if(Fields.includes(byTerm.field) && typeof item.key[byTerm.name] === 'number')
         {
           data[byTerm.name] = new Date(item.key[byTerm.name]).toISOString();
         }
