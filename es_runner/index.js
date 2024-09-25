@@ -11,7 +11,23 @@ function findAggsSize(size,bucketSizeHistory) {
   if (size - aggsSum > 10000) return 10000;
   return size - aggsSum;
 }
-function convertEpochtoUTC(item,aggreagationBody)
+
+function fetchDateTypeFields(mapping, prefix)
+{
+  const DateFields = [];
+  for (const i in mapping) {
+    if (mapping[i].properties) {
+      const subDATA = fetchDateTypeFields(mapping[i].properties, `${prefix ? `${prefix}.${i}` : i}`);
+      DateFields.push(subDATA);
+    } else {
+      if(mapping[i].type==='date')
+      DateFields.push(`${prefix ? `${prefix}.${i}` : i}`);    
+    }
+  }
+  return DateFields
+}
+
+async function convertEpochtoUTC(item,aggreagationBody,index,esClient)
 {
   const data = {};
   if (item.key["@timestamp"]) {
@@ -22,18 +38,45 @@ function convertEpochtoUTC(item,aggreagationBody)
   }
   if(aggreagationBody);
   {
-    aggreagationBody.by.map((byTerm) => {
-      if (item.key[byTerm.name] && ["@timestamp","timestamp"].includes(byTerm.field)) {
+    for (byTerm of aggreagationBody.by) {
+      if (
+        item.key[byTerm.name] &&
+        ["@timestamp", "timestamp"].includes(byTerm.field) 
+      ) {
         data[byTerm.name] = new Date(item.key[byTerm.name]).toISOString();
+      } else {
+        const { body } = await esClient.indices.getMapping({ index });
+
+        for (let index in body) {
+        const Fields=fetchDateTypeFields(
+          body[index]?.mappings?.properties
+        ).flat(Infinity)
+        if(Fields.includes(byTerm.field) && isNumber(item.key[byTerm.name]))
+        {
+          data[byTerm.name] = new Date(item.key[byTerm.name]).toISOString();
+        }
+        }
       }
-    });
+    }
   }
   return data
 }
-function populateCompostiteAggsData(aggsData,aggreagationBody) {
-  return aggsData.map((item) => {
-    return { ...item.key, count: item.doc_count,...convertEpochtoUTC(item,aggreagationBody) };
-  });
+
+async function populateCompostiteAggsData(aggsData,aggreagationBody,index,esClient) {
+  const data=[]
+  for (item of aggsData) {
+    const convertDate = await convertEpochtoUTC(
+      item,
+      aggreagationBody,
+      index,
+      esClient
+    );
+    data.push({
+      ...item.key,
+      count: item.doc_count,
+      ...convertDate,
+    })
+  }
 }
 
 function filterBuckets(buckets, gte, lte) {
@@ -44,7 +87,7 @@ function filterBuckets(buckets, gte, lte) {
   });
 }
 
-async function executeQuery(fresh, client, body, { indices }, size, aggreagationBody, isHistogram,bucketSizeHistory=[]) {
+async function executeQuery(fresh,index, client, body, { indices }, size, aggreagationBody, isHistogram,bucketSizeHistory=[]) {
   if (!client) return { status: false, message: "client not configured" };
 
   let resultFromES = {};
@@ -93,6 +136,7 @@ async function executeQuery(fresh, client, body, { indices }, size, aggreagation
       if (body.aggs.composite_agg.composite.size > 0) {
         const { result, took, status } = await executeQuery(
           false,
+          index,
           client,
           body,
           { indices },
@@ -104,17 +148,17 @@ async function executeQuery(fresh, client, body, { indices }, size, aggreagation
         if (status === true) {
           resultFromES.body.took += took;
           resultFromES.body.aggregations.composite_agg.buckets =
-          populateCompostiteAggsData(
+          await populateCompostiteAggsData(
             resultFromES.body.aggregations.composite_agg.buckets.concat(
               result.aggregations.composite_agg.buckets
-            ),aggreagationBody)
+            ),aggreagationBody,index,client)
         }
       }
     }
     else{
       resultFromES.body.aggregations.composite_agg.buckets =
-      populateCompostiteAggsData(
-        resultFromES.body.aggregations.composite_agg.buckets,aggreagationBody
+      await populateCompostiteAggsData(
+        resultFromES.body.aggregations.composite_agg.buckets,aggreagationBody,index,client
       );
     }
   
@@ -198,6 +242,7 @@ async function process(searchBody, aggreagationBody, timePicker, options) {
   const { esClient, shouldTablify = true } = options;
   const { result, took, status, errorBody } = await executeQuery(
     true,
+    searchBody.index,
     esClient,
     DSL,
     options,
