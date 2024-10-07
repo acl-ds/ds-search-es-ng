@@ -27,7 +27,7 @@ function fetchDateTypeFields(mapping, prefix)
   return DateFields
 }
 
-async function convertEpochtoUTC(item,aggreagationBody,FIELDS)
+ function convertEpochtoUTC(item,aggreagationBody,FIELDS)
 {
   const data = {};
   if (aggreagationBody && FIELDS.length>0) {
