@@ -27,49 +27,30 @@ function fetchDateTypeFields(mapping, prefix)
   return DateFields
 }
 
-async function convertEpochtoUTC(item,aggreagationBody,index,esClient)
+async function convertEpochtoUTC(item,aggreagationBody,FIELDS)
 {
   const data = {};
-  if (item.key["@timestamp"]) {
-    data["@timestamp"] = new Date(item.key["@timestamp"]).toISOString();
-  }
-  if (item.key["timestamp"]) {
-    data["timestamp"] = new Date(item.key["timestamp"]).toISOString();
-  }
-  if(aggreagationBody);
-  {
+  if (aggreagationBody && FIELDS.length>0) {
     for (byTerm of aggreagationBody.by) {
       if (
-        item.key[byTerm.name] &&
-        ["@timestamp", "timestamp"].includes(byTerm.field) 
+        item.key[byTerm.name || byTerm.field] &&
+        FIELDS.includes(byTerm.field) &&
+        typeof item.key[byTerm.name || byTerm.field] === "number"
       ) {
-        data[byTerm.name] = new Date(item.key[byTerm.name]).toISOString();
-      } else {
-        const { body } = await esClient.indices.getMapping({ index });
-
-        for (let index in body) {
-        const Fields=fetchDateTypeFields(
-          body[index]?.mappings?.properties
-        ).flat(Infinity)
-        if(Fields.includes(byTerm.field) && typeof item.key[byTerm.name] === 'number')
-        {
-          data[byTerm.name] = new Date(item.key[byTerm.name]).toISOString();
-        }
-        }
+        data[byTerm.name || byTerm.field] = new Date(item.key[byTerm.name || byTerm.field]).toISOString();
       }
     }
   }
-  return data
+  return data;
 }
 
-async function populateCompostiteAggsData(aggsData,aggreagationBody,index,esClient) {
+ function populateCompostiteAggsData(aggsData,aggreagationBody,FIELDS) {
   const data=[]
   for (item of aggsData) {
-    const convertDate = await convertEpochtoUTC(
+    const convertDate = convertEpochtoUTC(
       item,
       aggreagationBody,
-      index,
-      esClient
+      FIELDS
     );
     data.push({
       ...item.key,
@@ -88,7 +69,7 @@ function filterBuckets(buckets, gte, lte) {
   });
 }
 
-async function executeQuery(fresh,index, client, body, { indices }, size, aggreagationBody, isHistogram,bucketSizeHistory=[]) {
+async function executeQuery(fresh, client, body, { indices }, size, aggreagationBody,FIELDS,isHistogram,bucketSizeHistory=[]) {
   if (!client) return { status: false, message: "client not configured" };
 
   let resultFromES = {};
@@ -137,29 +118,29 @@ async function executeQuery(fresh,index, client, body, { indices }, size, aggrea
       if (body.aggs.composite_agg.composite.size > 0) {
         const { result, took, status } = await executeQuery(
           false,
-          index,
           client,
           body,
           { indices },
           size,
           aggreagationBody,
+          FIELDS,
           isHistogram,
           bucketSizeHistory
         );
         if (status === true) {
           resultFromES.body.took += took;
           resultFromES.body.aggregations.composite_agg.buckets =
-          await populateCompostiteAggsData(
+           populateCompostiteAggsData(
             resultFromES.body.aggregations.composite_agg.buckets.concat(
               result.aggregations.composite_agg.buckets
-            ),aggreagationBody,index,client)
+            ),aggreagationBody,FIELDS)
         }
       }
     }
     else{
       resultFromES.body.aggregations.composite_agg.buckets =
-      await populateCompostiteAggsData(
-        resultFromES.body.aggregations.composite_agg.buckets,aggreagationBody,index,client
+       populateCompostiteAggsData(
+        resultFromES.body.aggregations.composite_agg.buckets,aggreagationBody,FIELDS
       );
     }
   
@@ -230,7 +211,52 @@ function processAggregatedResults(aggregations) {
 
   return [root];
 }
-
+function fetchDateTypeFields(mapping, prefix) {
+  const DateFields = [];
+  for (const i in mapping) {
+    if (mapping[i].properties) {
+      const subDATA = fetchDateTypeFields(
+        mapping[i].properties,
+        `${prefix ? `${prefix}.${i}` : i}`
+      );
+      DateFields.push(subDATA);
+    } else {
+      if (mapping[i].type === "date")
+        DateFields.push(`${prefix ? `${prefix}.${i}` : i}`);
+    }
+  }
+  return DateFields;
+}
+async function populateDateFields(
+  esClient,
+  aggreagationBody,
+  isHistogram,
+  index
+) {
+  const preDefinedDateFields = ["@timestamp", "timestamp"];
+  let FIELDS=[]
+  if (aggreagationBody?.metric === "count" && !isHistogram) {
+    let OtherDateFields = false;
+    for (byTerm of aggreagationBody.by) {
+      if (!preDefinedDateFields.includes(byTerm.field)) {
+        OtherDateFields = true;
+      }
+    }
+    if (OtherDateFields) {
+      const { body } = await esClient.indices.getMapping({ index });
+      for (let index in body) {
+        if (!index.startsWith(".")) {
+          let Fields = fetchDateTypeFields(body[index]?.mappings?.properties);
+          FIELDS.push(Fields)
+        }
+      }
+      return FIELDS.flat(Infinity)
+    }
+    else 
+    preDefinedDateFields
+  }
+  return FIELDS;
+}
 async function process(searchBody, aggreagationBody, timePicker, options) {
   const parseStartTime = performance.now();
   const { size, DSL, isHistogram } = createDSL(
@@ -241,14 +267,20 @@ async function process(searchBody, aggreagationBody, timePicker, options) {
   );
   const DSLCreationTook = performance.now() - parseStartTime;
   const { esClient, shouldTablify = true } = options;
+  const FIELDS = await populateDateFields(
+    esClient,
+    aggreagationBody,
+    isHistogram,
+    searchBody.index
+  );
   const { result, took, status, errorBody } = await executeQuery(
     true,
-    searchBody.index,
     esClient,
     DSL,
     options,
     size,
     aggreagationBody,
+    FIELDS,
     isHistogram
   );
   const processingStartTime = performance.now();
