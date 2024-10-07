@@ -253,7 +253,7 @@ async function populateDateFields(
       return FIELDS.flat(Infinity)
     }
     else 
-    preDefinedDateFields
+    return preDefinedDateFields
   }
   return FIELDS;
 }
