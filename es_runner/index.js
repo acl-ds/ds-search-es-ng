@@ -237,7 +237,7 @@ async function populateDateFields(
   let FIELDS=[]
   if (aggreagationBody?.metric === "count" && !isHistogram) {
     let OtherDateFields = false;
-    for (byTerm of aggreagationBody.by) {
+    for (byTerm of aggreagationBody?.by || []) {
       if (!preDefinedDateFields.includes(byTerm.field)) {
         OtherDateFields = true;
       }
