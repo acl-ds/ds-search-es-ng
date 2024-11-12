@@ -13,14 +13,22 @@ function createColName(specs) {
   return name
 }
 
-function prepareTermClause({ field }) {
-  return {
-    terms: {
-      script:{
-        source:`if (doc.containsKey('${field}') && doc['${field}'].size() > 0 && doc['${field}'].value instanceof Number) {DecimalFormat df = new java.text.DecimalFormat('0');return df.format(doc['${field}'].value);} else {return params['_source']['${field}'] != null ? params['_source']['${field}'] : null;}`
-      }
-    },
-  };
+function prepareTermClause({ field },FIELDS) {
+  if (FIELDS.includes(field)) {
+    return {
+      terms: {
+        script: {
+          source: `if (doc.containsKey('${field}') && doc['${field}'].size() > 0 && doc['${field}'].value instanceof Number) {DecimalFormat df = new java.text.DecimalFormat('0');return df.format(doc['${field}'].value);} else {return doc['${field}'];}`,
+        },
+      },
+    };
+  } else {
+    return {
+      terms: {
+        field
+      },
+    };
+  }
 }
 
 function prepareHistogramClause({ field, interval = 150, min_doc_count = 0 }) {
@@ -58,11 +66,11 @@ function prepareTimeSeriesClause({ field, interval, size:buckets, mode_i = "fixe
   }
 }
 
-function getByAggregationDSL({ mode, ...specs }) {
+function getByAggregationDSL({ mode, ...specs },FIELDS) {
   switch (mode) {
     case 'time_series': return prepareTimeSeriesClause(specs)
     case 'histogram': return prepareHistogramClause(specs)
-    default: return prepareTermClause(specs)
+    default: return prepareTermClause(specs,FIELDS)
   }
 }
 
@@ -80,7 +88,7 @@ function getAggregation(name, body, aggs, metric,isHistogram, size) {
   return { [name]: { ...body, aggs: aggs } };
 }
 
-function prepareAggregations(aggregationBody,size) {
+function prepareAggregations(aggregationBody,size,isHistogram,FIELDS) {
   const { metric, by = [] } = aggregationBody
 
   let aggregations = getMetricPartDSL(metric)
@@ -91,14 +99,14 @@ function prepareAggregations(aggregationBody,size) {
       if (byTerm.mode === "time_series" || byTerm.mode === "histogram") {
         aggregationBody.isHistogram = true;
       }
-      aggregations = getAggregation(createColName(byTerm), getByAggregationDSL(byTerm), aggregations,aggregationBody.metric,aggregationBody.isHistogram,size)
+      aggregations = getAggregation(createColName(byTerm), getByAggregationDSL(byTerm,FIELDS), aggregations,aggregationBody.metric,isHistogram,size)
     });
   }
 
 
 
 
-  return {aggregations,isHistogram:aggregationBody.isHistogram};
+  return {aggregations};
 
 }
 

@@ -44,7 +44,7 @@ const CONCURRENT_SHARDS = 5
 
 
 
-function createDSL(searchBody, aggregationBody, timePicker, { search_after, customerFilter,size=25,from }) {
+function createDSL(searchBody, aggregationBody, timePicker, { search_after, customerFilter,size=25,from },isHistogram,FIELDS) {
   
   const { index, query, order, timeField: tf, searchMode = 'default', bypassTimeFilter = false,size:querySize } = searchBody
   let { orderBy } = searchBody
@@ -55,11 +55,12 @@ function createDSL(searchBody, aggregationBody, timePicker, { search_after, cust
 
 
   var aggs = undefined;
-  var isHistogram=undefined
   if (aggregationBody) {
-    var { aggregations:aggs, isHistogram } = prepareAggregations(
+    var { aggregations:aggs } = prepareAggregations(
       aggregationBody,
-      size
+      size,
+      isHistogram,
+      FIELDS
     );
   }
 
@@ -101,7 +102,7 @@ function createDSL(searchBody, aggregationBody, timePicker, { search_after, cust
     search_after,
   }
   console.log("DSL -> ", JSON.stringify(DSL))
-  return {DSL,size,isHistogram}
+  return {DSL,size}
 }
 
 module.exports = { createDSL, prepareQueryFilter }

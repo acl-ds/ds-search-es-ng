@@ -15,16 +15,23 @@ function findAggsSize(size,bucketSizeHistory) {
 function fetchDateTypeFields(mapping, prefix)
 {
   const DateFields = [];
+  const NumberField = [];
   for (const i in mapping) {
     if (mapping[i].properties) {
       const subDATA = fetchDateTypeFields(mapping[i].properties, `${prefix ? `${prefix}.${i}` : i}`);
       DateFields.push(subDATA);
     } else {
       if(mapping[i].type==='date')
-      DateFields.push(`${prefix ? `${prefix}.${i}` : i}`);    
+      DateFields.push(`${prefix ? `${prefix}.${i}` : i}`);   
+      else if (
+        mapping[i].type === "long" ||
+        mapping[i].type === "float" ||
+        mapping[i].type === "double"
+      )
+        NumberField.push(`${prefix ? `${prefix}.${i}` : i}`); 
     }
   }
-  return DateFields
+  return { DateFields, NumberField };
 }
 
  function convertEpochtoUTC(item,aggreagationBody,FIELDS)
@@ -315,32 +322,47 @@ async function populateDateFields(
       for (let index in body) {
         if (!index.startsWith(".")) {
           let Fields = fetchDateTypeFields(body[index]?.mappings?.properties);
-          FIELDS.push(Fields)
+          FIELDS.DateFields.push(Fields.DateFields);
+          FIELDS.NumberField.push(Fields.NumberField);
         }
       }
-      return FIELDS.flat(Infinity)
+      FIELDS.DateFields = FIELDS.DateFields.flat(Infinity);
+      FIELDS.NumberField = FIELDS.NumberField.flat(Infinity);
+      return FIELDS
     }
     else 
-    return preDefinedDateFields
+    return { DateFields: preDefinedDateFields, NumberField };
   }
   return FIELDS;
 }
 async function process(searchBody, aggreagationBody, timePicker, options) {
   const parseStartTime = performance.now();
-  const { size, DSL, isHistogram } = createDSL(
-    searchBody,
-    aggreagationBody,
-    timePicker,
-    options
-  );
-  const DSLCreationTook = performance.now() - parseStartTime;
   const { esClient, shouldTablify = true } = options;
+  let isHistogram=false;
+  const { by = [] } = aggreagationBody;
+  if (by) {
+    by.forEach((byTerm) => {
+      if (byTerm.mode === "time_series" || byTerm.mode === "histogram") {
+        isHistogram = true;
+      }
+    });
+  }
   const FIELDS = await populateDateFields(
     esClient,
     aggreagationBody,
     isHistogram,
     searchBody.index
   );
+  const { size, DSL } = createDSL(
+    searchBody,
+    aggreagationBody,
+    timePicker,
+    options,
+    isHistogram,
+    FIELDS.NumberField
+
+  );
+  const DSLCreationTook = performance.now() - parseStartTime;
   const { result, took, status, errorBody } = await driveExecuteQuery(
     true,
     esClient,
