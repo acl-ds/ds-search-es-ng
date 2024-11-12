@@ -302,14 +302,17 @@ function fetchDateTypeFields(mapping, prefix) {
   }
   return DateFields;
 }
-async function populateDateFields(
+async function populateMappingFields(
   esClient,
   aggreagationBody,
   isHistogram,
   index
 ) {
   const preDefinedDateFields = ["@timestamp", "timestamp"];
-  let FIELDS=[]
+  let FIELDS={
+    DateFields:[],
+    NumberField:[]
+  }
   if (aggreagationBody?.metric === "count" && !isHistogram) {
     let OtherDateFields = false;
     for (byTerm of aggreagationBody?.by || []) {
@@ -347,7 +350,7 @@ async function process(searchBody, aggreagationBody, timePicker, options) {
       }
     });
   }
-  const FIELDS = await populateDateFields(
+  const FIELDS = await populateMappingFields(
     esClient,
     aggreagationBody,
     isHistogram,
