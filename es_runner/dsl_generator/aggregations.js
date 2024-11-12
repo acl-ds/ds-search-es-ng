@@ -15,10 +15,12 @@ function createColName(specs) {
 
 function prepareTermClause({ field }) {
   return {
-    terms:{
-      field
-    }
-  }
+    terms: {
+      script:{
+        source:`if (doc.containsKey('${field}') && doc['${field}'].size() > 0 && doc['${field}'].value instanceof Number) {DecimalFormat df = new java.text.DecimalFormat('0');return df.format(doc['${field}'].value);} else {return params['_source']['${field}'] != null ? params['_source']['${field}'] : null;}`
+      }
+    },
+  };
 }
 
 function prepareHistogramClause({ field, interval = 150, min_doc_count = 0 }) {

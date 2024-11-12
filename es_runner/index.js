@@ -68,90 +68,158 @@ function filterBuckets(buckets, gte, lte) {
     return bucket.key >= startTime && bucket.key <= endTime;
   });
 }
+async function executeQuery(client, body, { indices }) {
+  if (!client) return { status: false, message: "client not configured" };  
 
-async function executeQuery(fresh, client, body, { indices }, size, aggreagationBody,FIELDS,isHistogram,bucketSizeHistory=[]) {
-  if (!client) return { status: false, message: "client not configured" };
+  // body.script_fields = script
 
   let resultFromES = {};
   try {
-    resultFromES = await client.search({
+     resultFromES = await client.search({
       index: indices,
       body,
       rest_total_hits_as_int: true,
     });
+    console.log("af");
+    
   } catch (err) {
-    if (err.meta && err.meta.statusCode >= 400) {
-      console.log("ES Error: ", JSON.stringify(err));
+  if (err.meta && err.meta.statusCode >= 400) {
       return {
         status: false,
         message: "invalid request to data store",
         errorBody: err.meta.body,
       };
     }
-    console.log("ES Error: ", err.toString());
     return {
       status: false,
       message: "data store unavailable," + err.toString(),
     };
   }
-  if (isHistogram &&  body.query.bool.filter[0] && resultFromES.body.aggregations) {
-      const aggsField=Object.keys(resultFromES.body?.aggregations)[0]
-      resultFromES.body.aggregations[aggsField].buckets  = filterBuckets(
-      resultFromES.body.aggregations[aggsField].buckets || [],
-      body.query.bool.filter[0].range["@timestamp"].gte,
-      body.query.bool.filter[0].range["@timestamp"].lte
-    );
-  }
-  if (
-    resultFromES.body.aggregations &&
-    resultFromES.body.aggregations.composite_agg &&
-    resultFromES.body.aggregations.composite_agg.after_key
-  ) {
-    if (body.aggs.composite_agg.composite.size < size) {
-      if (fresh) bucketSizeHistory.push(body.aggs.composite_agg.composite.size);
-      body.aggs.composite_agg.composite.after =
-        resultFromES.body.aggregations.composite_agg.after_key;
-  
-      body.aggs.composite_agg.composite.size =
-      bucketSizeHistory[bucketSizeHistory.push(findAggsSize(size,bucketSizeHistory)) - 1];
-  
-      if (body.aggs.composite_agg.composite.size > 0) {
-        const { result, took, status } = await executeQuery(
-          false,
-          client,
-          body,
-          { indices },
-          size,
-          aggreagationBody,
-          FIELDS,
-          isHistogram,
-          bucketSizeHistory
-        );
-        if (status === true) {
-          resultFromES.body.took += took;
-          resultFromES.body.aggregations.composite_agg.buckets =
-           populateCompostiteAggsData(
-            resultFromES.body.aggregations.composite_agg.buckets.concat(
-              result.aggregations.composite_agg.buckets
-            ),aggreagationBody,FIELDS)
-        }
-      }
-    }
-    else{
-      resultFromES.body.aggregations.composite_agg.buckets =
-       populateCompostiteAggsData(
-        resultFromES.body.aggregations.composite_agg.buckets,aggreagationBody,FIELDS
-      );
-    }
-  
-  }
-
   return {
     result: resultFromES.body,
-    took: resultFromES.body.took,
+    took: resultFromES.body.took, 
     status: true,
     message: "data store query completed",
   };
+}
+
+
+async function driveExecuteQuery(
+  fresh,
+  client,
+  body,
+  { indices },
+  size,
+  aggreagationBody,
+  FIELDS,
+  isHistogram,
+  bucketSizeHistory = []
+) {
+  let doNextSearch = true;
+  let resultFromEQ = {
+    result: undefined,
+    took: 0,
+  };
+  if (body.aggs?.composite_agg)
+    bucketSizeHistory.push(body.aggs.composite_agg.composite.size);
+  lastExecTime = false;
+  N = 1;
+  while (doNextSearch) {
+    if (lastExecTime) {
+      const now = +new Date();
+      const diff = now - lastExecTime;
+      lastExecTime = now;
+      console.log("executed no " + N++, " timeTaken " + diff);
+    } else {
+      lastExecTime = +new Date();
+      console.log("executed no", N++);
+    }
+    const { result, took, status, errorBody, message } = await executeQuery(
+      client,
+      body,
+      { indices }
+    );
+    if (status) {
+      if (
+        true &&
+        isHistogram &&
+        body.query.bool.filter[0] &&
+        result.aggregations
+      ) {
+        const aggsField = Object.keys(result?.aggregations)[0];
+        result.aggregations[aggsField].buckets = filterBuckets(
+          result.aggregations[aggsField].buckets || [],
+          body.query.bool.filter[0].range["@timestamp"].gte,
+          body.query.bool.filter[0].range["@timestamp"].lte
+        );
+      }
+      if (
+        result.aggregations &&
+        result.aggregations.composite_agg &&
+        result.aggregations.composite_agg.after_key &&
+        body.aggs.composite_agg.composite.size < size &&
+        result.aggregations.composite_agg.buckets.length >=
+          body.aggs.composite_agg.composite.size &&
+        body.aggs.composite_agg.composite.size > 0
+      ) {
+        body.aggs.composite_agg.composite.after =
+          result.aggregations.composite_agg.after_key;
+
+        body.aggs.composite_agg.composite.size =
+          bucketSizeHistory[
+            bucketSizeHistory.push(findAggsSize(size, bucketSizeHistory)) - 1
+          ];
+ 
+       if (!resultFromEQ.result) {
+          resultFromEQ.result = result;
+        } else {
+          resultFromEQ.result.aggregations.composite_agg.buckets =
+            resultFromEQ.result.aggregations.composite_agg.buckets.concat(
+              result.aggregations.composite_agg.buckets
+            );
+        }
+        resultFromEQ.took += took;
+        console.log("query took ", took);
+
+        if (!body.aggs.composite_agg.composite.size > 0) {
+
+          resultFromEQ.status = true;
+          resultFromEQ.result.aggregations.composite_agg.buckets =
+            populateCompostiteAggsData(
+              resultFromEQ.result.aggregations.composite_agg.buckets || [],
+              aggreagationBody,
+              FIELDS
+            );
+          return resultFromEQ;
+        }
+      } else {
+        if (body.aggs?.composite_agg) {
+          if (resultFromEQ.result) {
+            resultFromEQ.status = true;
+            resultFromEQ.result.aggregations.composite_agg.buckets =
+              populateCompostiteAggsData(
+                resultFromEQ.result.aggregations.composite_agg.buckets || [],
+                aggreagationBody,
+                FIELDS
+              );
+            return resultFromEQ;
+          } else {
+            result.aggregations.composite_agg.buckets =
+              populateCompostiteAggsData(
+                result.aggregations.composite_agg.buckets || [],
+                aggreagationBody,
+                FIELDS
+              );
+          }
+          return { result, took, status };
+        } else {
+          return { result, took, status };
+        }
+      }
+    } else {
+      return { status };
+    }
+  }
 }
 
 function processSearchResults(hits = []) {
@@ -273,7 +341,7 @@ async function process(searchBody, aggreagationBody, timePicker, options) {
     isHistogram,
     searchBody.index
   );
-  const { result, took, status, errorBody } = await executeQuery(
+  const { result, took, status, errorBody } = await driveExecuteQuery(
     true,
     esClient,
     DSL,
