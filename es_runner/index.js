@@ -88,7 +88,6 @@ async function executeQuery(client, body, { indices }) {
       body,
       rest_total_hits_as_int: true,
     });
-    console.log("af");
     
   } catch (err) {
   if (err.meta && err.meta.statusCode >= 400) {
@@ -286,22 +285,6 @@ function processAggregatedResults(aggregations) {
   });
 
   return [root];
-}
-function fetchDateTypeFields(mapping, prefix) {
-  const DateFields = [];
-  for (const i in mapping) {
-    if (mapping[i].properties) {
-      const subDATA = fetchDateTypeFields(
-        mapping[i].properties,
-        `${prefix ? `${prefix}.${i}` : i}`
-      );
-      DateFields.push(subDATA);
-    } else {
-      if (mapping[i].type === "date")
-        DateFields.push(`${prefix ? `${prefix}.${i}` : i}`);
-    }
-  }
-  return DateFields;
 }
 async function populateMappingFields(
   esClient,
