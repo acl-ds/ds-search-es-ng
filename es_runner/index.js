@@ -342,13 +342,16 @@ async function process(searchBody, aggreagationBody, timePicker, options) {
   const parseStartTime = performance.now();
   const { esClient, shouldTablify = true } = options;
   let isHistogram=false;
-  const { by = [] } = aggreagationBody;
-  if (by) {
-    by.forEach((byTerm) => {
-      if (byTerm.mode === "time_series" || byTerm.mode === "histogram") {
-        isHistogram = true;
-      }
-    });
+  if(aggreagationBody)
+  {
+    const { by = [] } = aggreagationBody;
+    if (by) {
+      by.forEach((byTerm) => {
+        if (byTerm.mode === "time_series" || byTerm.mode === "histogram") {
+          isHistogram = true;
+        }
+      });
+    }
   }
   const FIELDS = await populateMappingFields(
     esClient,
