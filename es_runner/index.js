@@ -19,7 +19,8 @@ function fetchDateTypeFields(mapping, prefix)
   for (const i in mapping) {
     if (mapping[i].properties) {
       const subDATA = fetchDateTypeFields(mapping[i].properties, `${prefix ? `${prefix}.${i}` : i}`);
-      DateFields.push(subDATA);
+      DateFields.push(subDATA.DateFields);
+      NumberField.push(subDATA.NumberField);
     } else {
       if(mapping[i].type==='date')
       DateFields.push(`${prefix ? `${prefix}.${i}` : i}`);   
