@@ -297,7 +297,7 @@ async function populateMappingFields(
     DateFields:[],
     NumberField:[]
   }
-  if (aggreagationBody?.metric === "count" && !isHistogram) {
+  if ((aggreagationBody?.metric === "count" || aggreagationBody?.metric?.metric_functions) && !isHistogram) {
     let OtherDateFields = false;
     for (byTerm of aggreagationBody?.by || []) {
       if (!preDefinedDateFields.includes(byTerm.field)) {
