@@ -318,7 +318,7 @@ async function populateMappingFields(
       return FIELDS
     }
     else 
-    return { DateFields: preDefinedDateFields, NumberField };
+    return { DateFields: preDefinedDateFields, NumberField:[] };
   }
   return FIELDS;
 }
