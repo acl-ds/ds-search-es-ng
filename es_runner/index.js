@@ -58,7 +58,7 @@ function fetchDateTypeFields(mapping, prefix)
     const convertDate = convertEpochtoUTC(
       item,
       aggreagationBody,
-      FIELDS
+      FIELDS.DateFields
     );
     data.push({
       ...item.key,
