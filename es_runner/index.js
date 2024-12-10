@@ -112,7 +112,6 @@ async function executeQuery(client, body, { indices }) {
 
 
 async function driveExecuteQuery(
-  fresh,
   client,
   body,
   { indices },
@@ -191,32 +190,13 @@ async function driveExecuteQuery(
         if (!body.aggs.composite_agg.composite.size > 0) {
 
           resultFromEQ.status = true;
-          resultFromEQ.result.aggregations.composite_agg.buckets =
-            populateCompostiteAggsData(
-              resultFromEQ.result.aggregations.composite_agg.buckets || [],
-              aggreagationBody,
-              FIELDS
-            );
           return resultFromEQ;
         }
       } else {
         if (body.aggs?.composite_agg) {
           if (resultFromEQ.result) {
             resultFromEQ.status = true;
-            resultFromEQ.result.aggregations.composite_agg.buckets =
-              populateCompostiteAggsData(
-                resultFromEQ.result.aggregations.composite_agg.buckets || [],
-                aggreagationBody,
-                FIELDS
-              );
             return resultFromEQ;
-          } else {
-            result.aggregations.composite_agg.buckets =
-              populateCompostiteAggsData(
-                result.aggregations.composite_agg.buckets || [],
-                aggreagationBody,
-                FIELDS
-              );
           }
           return { result, took, status };
         } else {
@@ -354,7 +334,6 @@ async function process(searchBody, aggreagationBody, timePicker, options) {
   );
   const DSLCreationTook = performance.now() - parseStartTime;
   const { result, took, status, errorBody } = await driveExecuteQuery(
-    true,
     esClient,
     DSL,
     options,
@@ -372,7 +351,11 @@ async function process(searchBody, aggreagationBody, timePicker, options) {
         data.push(result.hits);
       } else {
         if (result.aggregations?.composite_agg)
-          data = result.aggregations.composite_agg.buckets;
+          data =  populateCompostiteAggsData(
+            result.aggregations.composite_agg.buckets,
+            aggreagationBody,
+            FIELDS
+          )
         else if (shouldTablify)
           data.push(...tablify(processAggregatedResults(result.aggregations)));
         else data.push(processAggregatedResults(result.aggregations));
