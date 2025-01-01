@@ -35,7 +35,24 @@ function fetchDateTypeFields(mapping, prefix)
   return { DateFields, NumberField };
 }
 
+function convertEpochtoUTC(item, aggreagationBody, FIELDS) {
+  const data = {};
+  if (aggreagationBody && FIELDS.length > 0) {
+    for (byTerm of aggreagationBody.by) {
 
+      if (
+        item.key[byTerm.name || byTerm.field] &&
+        FIELDS.includes(byTerm.field) &&
+        typeof item.key[byTerm.name || byTerm.field] === "number"
+      ) {
+        data[byTerm.name || byTerm.field] = new Date(
+          item.key[byTerm.name || byTerm.field]
+        ).toISOString();
+      }
+    }
+  }
+  return data;
+}
 
  function populateCompostiteAggsData(aggsData,aggreagationBody,FIELDS) {
   const data=[]
