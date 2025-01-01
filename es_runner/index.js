@@ -40,10 +40,12 @@ function fetchDateTypeFields(mapping, prefix)
  function populateCompostiteAggsData(aggsData,aggreagationBody,FIELDS) {
   const data=[]
   for (item of aggsData) {
+    const convertDate = convertEpochtoUTC(item, aggreagationBody, FIELDS.DateFields);
     data.push({
       ...item.key,
       count: item.doc_count,
-    })
+      ...convertDate,
+    });
   }
   return data
 }
