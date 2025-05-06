@@ -43,7 +43,13 @@ async function storeToElasticSearch(data, esClient) {
     .substr(2, 8)
     .toLowerCase()}`;
 
-  const body = data.flatMap((doc) => [{ index: { _index: index } }, doc]);
+  const body = data.flatMap((doc) => {
+    const { _index, ...cleanedDoc } = doc;
+    if (_index) {
+      cleanedDoc.index = _index;
+    }
+    return [{ index: { _index: index } }, cleanedDoc];
+  });
 
   const { body: bulkResponse } = await esClient.bulk({ refresh: true, body });
   if (bulkResponse.errors) return false;
