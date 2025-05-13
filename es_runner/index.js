@@ -133,10 +133,10 @@ async function driveExecuteQuery(
       const now = +new Date();
       const diff = now - lastExecTime;
       lastExecTime = now;
-      console.log("executed no " + N++, " timeTaken " + diff);
+      // console.log("executed no " + N++, " timeTaken " + diff);
     } else {
       lastExecTime = +new Date();
-      console.log("executed no", N++);
+      // console.log("executed no", N++);
     }
     const { result, took, status, errorBody, message } = await executeQuery(
       client,
