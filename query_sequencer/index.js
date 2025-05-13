@@ -69,7 +69,6 @@ async function executeQuery(query, timePicker, options) {
         );
       }
     }
-    console.log(query);
     const parseStart = performance.now();
     const res = parser.parse(query);
     parsedQuery.push(...res);
