@@ -255,7 +255,7 @@ function prepareValueObject(valueObjectRef, name) {
   return valueObjectRef;
 }
 
-function processAggregatedResults(aggregations) {
+function processAggregatedResults(aggregations={}) {
   const root = {};
 
   Object.entries(aggregations).forEach(([name, valueObject]) => {
