@@ -5,15 +5,14 @@ const { tablify } = require("../utils/tablify");
 
 
 
-function findAggsSize(size,bucketSizeHistory) {
+function findAggsSize(size, bucketSizeHistory) {
   aggsSum = bucketSizeHistory.reduce((a, b) => a + b, 0);
   if (aggsSum >= size) return 0;
   if (size - aggsSum > 10000) return 10000;
   return size - aggsSum;
 }
 
-function fetchDateTypeFields(mapping, prefix)
-{
+function fetchDateTypeFields(mapping, prefix) {
   const DateFields = [];
   const NumberField = [];
   for (const i in mapping) {
@@ -22,14 +21,14 @@ function fetchDateTypeFields(mapping, prefix)
       DateFields.push(subDATA.DateFields);
       NumberField.push(subDATA.NumberField);
     } else {
-      if(mapping[i].type==='date')
-      DateFields.push(`${prefix ? `${prefix}.${i}` : i}`);   
+      if (mapping[i].type === 'date')
+        DateFields.push(`${prefix ? `${prefix}.${i}` : i}`);
       else if (
         mapping[i].type === "long" ||
         mapping[i].type === "float" ||
         mapping[i].type === "double"
       )
-        NumberField.push(`${prefix ? `${prefix}.${i}` : i}`); 
+        NumberField.push(`${prefix ? `${prefix}.${i}` : i}`);
     }
   }
   return { DateFields, NumberField };
@@ -54,8 +53,8 @@ function convertEpochtoUTC(item, aggreagationBody, FIELDS) {
   return data;
 }
 
- function populateCompostiteAggsData(aggsData,aggreagationBody,FIELDS) {
-  const data=[]
+function populateCompostiteAggsData(aggsData, aggreagationBody, FIELDS) {
+  const data = []
   for (item of aggsData) {
     const convertDate = convertEpochtoUTC(item, aggreagationBody, FIELDS.DateFields);
     data.push({
@@ -70,25 +69,25 @@ function convertEpochtoUTC(item, aggreagationBody, FIELDS) {
 function filterBuckets(buckets, gte, lte) {
   const startTime = new Date(gte).getTime();
   const endTime = new Date(lte).getTime();
-  return buckets.filter((bucket) => {    
+  return buckets.filter((bucket) => {
     return bucket.key >= startTime && bucket.key <= endTime;
   });
 }
 async function executeQuery(client, body, { indices }) {
-  if (!client) return { status: false, message: "client not configured" };  
+  if (!client) return { status: false, message: "client not configured" };
 
   // body.script_fields = script
 
   let resultFromES = {};
   try {
-     resultFromES = await client.search({
+    resultFromES = await client.search({
       index: indices,
       body,
       rest_total_hits_as_int: true,
     });
-    
+
   } catch (err) {
-  if (err.meta && err.meta.statusCode >= 400) {
+    if (err.meta && err.meta.statusCode >= 400) {
       return {
         status: false,
         message: "invalid request to data store",
@@ -102,7 +101,7 @@ async function executeQuery(client, body, { indices }) {
   }
   return {
     result: resultFromES.body,
-    took: resultFromES.body.took, 
+    took: resultFromES.body.took,
     status: true,
     message: "data store query completed",
   };
@@ -163,7 +162,7 @@ async function driveExecuteQuery(
         result.aggregations.composite_agg.after_key &&
         body.aggs.composite_agg.composite.size < size &&
         result.aggregations.composite_agg.buckets.length >=
-          body.aggs.composite_agg.composite.size &&
+        body.aggs.composite_agg.composite.size &&
         body.aggs.composite_agg.composite.size > 0
       ) {
         body.aggs.composite_agg.composite.after =
@@ -171,10 +170,10 @@ async function driveExecuteQuery(
 
         body.aggs.composite_agg.composite.size =
           bucketSizeHistory[
-            bucketSizeHistory.push(findAggsSize(size, bucketSizeHistory)) - 1
+          bucketSizeHistory.push(findAggsSize(size, bucketSizeHistory)) - 1
           ];
- 
-       if (!resultFromEQ.result) {
+
+        if (!resultFromEQ.result) {
           resultFromEQ.result = result;
         } else {
           resultFromEQ.result.aggregations.composite_agg.buckets =
@@ -255,7 +254,7 @@ function prepareValueObject(valueObjectRef, name) {
   return valueObjectRef;
 }
 
-function processAggregatedResults(aggregations={}) {
+function processAggregatedResults(aggregations = {}) {
   const root = {};
 
   Object.entries(aggregations).forEach(([name, valueObject]) => {
@@ -271,9 +270,9 @@ async function populateMappingFields(
   index
 ) {
   const preDefinedDateFields = ["@timestamp", "timestamp"];
-  let FIELDS={
-    DateFields:[],
-    NumberField:[]
+  let FIELDS = {
+    DateFields: [],
+    NumberField: []
   }
   if ((aggreagationBody?.metric === "count" || aggreagationBody?.metric?.metric_functions) && !isHistogram) {
     let OtherDateFields = false;
@@ -295,17 +294,16 @@ async function populateMappingFields(
       FIELDS.NumberField = FIELDS.NumberField.flat(Infinity);
       return FIELDS
     }
-    else 
-    return { DateFields: preDefinedDateFields, NumberField:[] };
+    else
+      return { DateFields: preDefinedDateFields, NumberField: [] };
   }
   return FIELDS;
 }
 async function process(searchBody, aggreagationBody, timePicker, options) {
   const parseStartTime = performance.now();
   const { esClient, shouldTablify = true } = options;
-  let isHistogram=false;
-  if(aggreagationBody)
-  {
+  let isHistogram = false;
+  if (aggreagationBody) {
     const { by = [] } = aggreagationBody;
     if (by) {
       by.forEach((byTerm) => {
@@ -349,14 +347,16 @@ async function process(searchBody, aggreagationBody, timePicker, options) {
         data.push(result.hits);
       } else {
         if (result.aggregations?.composite_agg)
-          data =  populateCompostiteAggsData(
+          data = populateCompostiteAggsData(
             result.aggregations.composite_agg.buckets,
             aggreagationBody,
             FIELDS
           )
         else if (shouldTablify && result.aggregations)
           data.push(...tablify(processAggregatedResults(result.aggregations)));
-        else if(result.aggregations )data.push(processAggregatedResults(result.aggregations));
+        else if (result.aggregations) data.push(processAggregatedResults(result.aggregations));
+        else
+          console.log(new Date(), "aggregation failuures", result._shards.failures);
       }
     }
   }
