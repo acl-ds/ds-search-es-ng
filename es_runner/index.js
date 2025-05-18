@@ -354,9 +354,9 @@ async function process(searchBody, aggreagationBody, timePicker, options) {
             aggreagationBody,
             FIELDS
           )
-        else if (shouldTablify)
+        else if (shouldTablify && result.aggregations)
           data.push(...tablify(processAggregatedResults(result.aggregations)));
-        else data.push(processAggregatedResults(result.aggregations));
+        else if(result.aggregations )data.push(processAggregatedResults(result.aggregations));
       }
     }
   }
