@@ -263,42 +263,55 @@ function processAggregatedResults(aggregations = {}) {
 
   return [root];
 }
-async function populateMappingFields(
-  esClient,
-  aggreagationBody,
-  isHistogram,
-  index
-) {
-  const preDefinedDateFields = ["@timestamp", "timestamp"];
-  let FIELDS = {
-    DateFields: [],
-    NumberField: []
-  }
-  if ((aggreagationBody?.metric === "count" || aggreagationBody?.metric?.metric_functions) && !isHistogram) {
-    let OtherDateFields = false;
-    for (byTerm of aggreagationBody?.by || []) {
-      if (!preDefinedDateFields.includes(byTerm.field)) {
-        OtherDateFields = true;
-      }
-    }
-    if (OtherDateFields) {
-      const { body } = await esClient.indices.getMapping({ index });
-      for (let index in body) {
-        if (!index.startsWith(".")) {
-          let Fields = fetchDateTypeFields(body[index]?.mappings?.properties);
-          FIELDS.DateFields.push(Fields.DateFields);
-          FIELDS.NumberField.push(Fields.NumberField);
+
+
+async function populateDataTypeOfFields(esClient,
+    aggreagationBody,
+    isHistogram,
+    index) {
+    const preDefinedDateFields = ["@timestamp", "timestamp"]
+    let FIELDS = {
+      DateFields: [],
+      NumberField: []
+    };
+    if ((aggreagationBody?.metric === "count" || aggreagationBody?.metric?.metric_functions) && !isHistogram) {
+      let OtherDateFields = false;
+      for (byTerm of aggreagationBody?.by || []) {
+        if (!preDefinedDateFields.includes(byTerm.field)) {
+          OtherDateFields = true;
         }
       }
-      FIELDS.DateFields = FIELDS.DateFields.flat(Infinity);
-      FIELDS.NumberField = FIELDS.NumberField.flat(Infinity);
-      return FIELDS
+      if (OtherDateFields) {
+        try {
+          const fields=aggreagationBody.by.map((item)=>{
+            return item.field
+          })
+          const { body } = await esClient.fieldCaps({
+            index,
+            fields: fields.join(','),
+          });
+          for (const field of fields) {
+            if (
+              body.fields[field]?.['long'] ||
+              body.fields[field]?.['float'] ||
+              body.fields[field]?.['double']
+            ) {
+              FIELDS.NumberField.push(field)
+            }
+            else if ( body.fields[field]?.['date']) {
+              FIELDS.DateFields.push(field)
+            }
+          }
+        } catch (err) {
+          console.log(err);
+        }
+        return FIELDS;
+      } else return { DateFields: preDefinedDateFields, NumberField: [] };
     }
-    else
-      return { DateFields: preDefinedDateFields, NumberField: [] };
+    return FIELDS;
   }
-  return FIELDS;
-}
+
+  
 async function process(searchBody, aggreagationBody, timePicker, options) {
   const parseStartTime = performance.now();
   const { esClient, shouldTablify = true } = options;
@@ -313,7 +326,7 @@ async function process(searchBody, aggreagationBody, timePicker, options) {
       });
     }
   }
-  const FIELDS = await populateMappingFields(
+  const FIELDS = await populateDataTypeOfFields(
     esClient,
     aggreagationBody,
     isHistogram,
