@@ -39,6 +39,7 @@ async function processOnFunction(head, command, options) {
 }
 
 async function executeQuery(query, timePicker, options) {
+  console.log(`${new Date()}:  ${query}`);  
   const parsedQuery = [];
   let parseTook = 0;
   try {    

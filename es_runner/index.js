@@ -12,27 +12,6 @@ function findAggsSize(size, bucketSizeHistory) {
   return size - aggsSum;
 }
 
-function fetchDateTypeFields(mapping, prefix) {
-  const DateFields = [];
-  const NumberField = [];
-  for (const i in mapping) {
-    if (mapping[i].properties) {
-      const subDATA = fetchDateTypeFields(mapping[i].properties, `${prefix ? `${prefix}.${i}` : i}`);
-      DateFields.push(subDATA.DateFields);
-      NumberField.push(subDATA.NumberField);
-    } else {
-      if (mapping[i].type === 'date')
-        DateFields.push(`${prefix ? `${prefix}.${i}` : i}`);
-      else if (
-        mapping[i].type === "long" ||
-        mapping[i].type === "float" ||
-        mapping[i].type === "double"
-      )
-        NumberField.push(`${prefix ? `${prefix}.${i}` : i}`);
-    }
-  }
-  return { DateFields, NumberField };
-}
 
 function convertEpochtoUTC(item, aggreagationBody, FIELDS) {
   const data = {};
@@ -51,12 +30,12 @@ function convertEpochtoUTC(item, aggreagationBody, FIELDS) {
     }
   }
   return data;
-}
+}  
 
 function populateCompostiteAggsData(aggsData, aggreagationBody, FIELDS) {
   const data = []
   for (item of aggsData) {
-    const convertDate = convertEpochtoUTC(item, aggreagationBody, FIELDS.DateFields);
+    const convertDate = convertEpochtoUTC(item, aggreagationBody, FIELDS);
     data.push({
       ...item.key,
       count: item.doc_count,
@@ -113,8 +92,6 @@ async function driveExecuteQuery(
   body,
   { indices },
   size,
-  aggreagationBody,
-  FIELDS,
   isHistogram,
   bucketSizeHistory = []
 ) {
@@ -264,49 +241,83 @@ function processAggregatedResults(aggregations = {}) {
   return [root];
 }
 
+ function cacheFieldDataType(indices, mappedIndices, field, type) {
+    if (mappedIndices) {
+      indices = mappedIndices
+    }
+    for (const index of indices) {
+      FieldDataType.set(`${index}##${field}`, type)
+    }
+  }
 
-async function populateDataTypeOfFields(esClient,
+ async function populateDataTypeOfFields(esClient,
     aggreagationBody,
     isHistogram,
     index) {
-    const preDefinedDateFields = ["@timestamp", "timestamp"]
     let FIELDS = {
       DateFields: [],
       NumberField: []
     };
     if ((aggreagationBody?.metric === "count" || aggreagationBody?.metric?.metric_functions) && !isHistogram) {
-      let OtherDateFields = false;
+      const fieldsToFetch = []
       for (byTerm of aggreagationBody?.by || []) {
         if (!preDefinedDateFields.includes(byTerm.field)) {
-          OtherDateFields = true;
+          const FieldValue = FieldDataType.get(`${index}##${byTerm.field}`)
+          if (FieldValue) {
+            if (FieldValue === 'DATE') {
+              FIELDS.DateFields.push(byTerm.field)
+            } else if (["long", "float", "double"].includes(FieldValue)) {
+              FIELDS.NumberField.push(byTerm.field)
+            }
+          }
+          else {
+            fieldsToFetch.push(byTerm.field)
+          }
+        }
+        else {
+          FIELDS.DateFields.push(byTerm.field)
         }
       }
-      if (OtherDateFields) {
+
+      if (fieldsToFetch.length >= 1) {
         try {
-          const fields=aggreagationBody.by.map((item)=>{
-            return item.field
-          })
           const { body } = await esClient.fieldCaps({
             index,
-            fields: fields.join(','),
+            fields: fieldsToFetch,
+            include_unmapped: true,
           });
-          for (const field of fields) {
-            if (
-              body.fields[field]?.['long'] ||
-              body.fields[field]?.['float'] ||
-              body.fields[field]?.['double']
-            ) {
-              FIELDS.NumberField.push(field)
-            }
-            else if ( body.fields[field]?.['date']) {
-              FIELDS.DateFields.push(field)
+          for (const field of fieldsToFetch) {
+            if (body.fields[field]) {
+              if (
+                body.fields[field]?.['long'] ||
+                body.fields[field]?.['float'] ||
+                body.fields[field]?.['double']
+              ) {
+                cacheFieldDataType(body.indices,
+                  (body.fields[field]?.['long']?.indices || []).concat(
+                    body.fields[field]?.['float']?.indices || []
+                  ).concat(
+                    body.fields[field]?.['double']?.indices || []
+                  ),
+                  field, 'NUMBER')
+                FIELDS.NumberField.push(field)
+              }
+              if (body.fields[field]?.['date']) {
+                cacheFieldDataType(body.indices, body.fields[field]?.['date']?.indices, field, 'DATE')
+                FIELDS.DateFields.push(field)
+              }
+              else {
+                delete body.fields[field].unmapped
+                for (const filedType in body.fields[field]) {
+                  cacheFieldDataType(body.indices, body.fields[field]?.[filedType]?.indices, field, 'N')
+                }
+              }
             }
           }
         } catch (err) {
           console.log(err);
         }
-        return FIELDS;
-      } else return { DateFields: preDefinedDateFields, NumberField: [] };
+      }
     }
     return FIELDS;
   }
@@ -339,7 +350,6 @@ async function process(searchBody, aggreagationBody, timePicker, options) {
     options,
     isHistogram,
     FIELDS.NumberField
-
   );
   const DSLCreationTook = performance.now() - parseStartTime;
   const { result, took, status, errorBody } = await driveExecuteQuery(
@@ -347,8 +357,6 @@ async function process(searchBody, aggreagationBody, timePicker, options) {
     DSL,
     options,
     size,
-    aggreagationBody,
-    FIELDS,
     isHistogram
   );
   const processingStartTime = performance.now();
@@ -363,7 +371,7 @@ async function process(searchBody, aggreagationBody, timePicker, options) {
           data = populateCompostiteAggsData(
             result.aggregations.composite_agg.buckets,
             aggreagationBody,
-            FIELDS
+            FIELDS.DateFields
           )
         else if (shouldTablify && result.aggregations)
           data.push(...tablify(processAggregatedResults(result.aggregations)));
