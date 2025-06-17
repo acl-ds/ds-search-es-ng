@@ -4,6 +4,8 @@ const { createDSL } = require("./dsl_generator");
 const { tablify } = require("../utils/tablify");
 
 
+const FieldDataType = new Map()
+const preDefinedDateFields = ["@timestamp", "timestamp"]
 
 function findAggsSize(size, bucketSizeHistory) {
   aggsSum = bucketSizeHistory.reduce((a, b) => a + b, 0);
