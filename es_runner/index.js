@@ -30,7 +30,7 @@ function convertEpochtoUTC(item, aggreagationBody, FIELDS) {
     }
   }
   return data;
-}  
+}
 
 function populateCompostiteAggsData(aggsData, aggreagationBody, FIELDS) {
   const data = []
@@ -241,88 +241,88 @@ function processAggregatedResults(aggregations = {}) {
   return [root];
 }
 
- function cacheFieldDataType(indices, mappedIndices, field, type) {
-    if (mappedIndices) {
-      indices = mappedIndices
-    }
-    for (const index of indices) {
-      FieldDataType.set(`${index}##${field}`, type)
-    }
+function cacheFieldDataType(indices, mappedIndices, field, type) {
+  if (mappedIndices) {
+    indices = mappedIndices
   }
+  for (const index of indices) {
+    FieldDataType.set(`${index}##${field}`, type)
+  }
+}
 
- async function populateDataTypeOfFields(esClient,
-    aggreagationBody,
-    isHistogram,
-    index) {
-    let FIELDS = {
-      DateFields: [],
-      NumberField: []
-    };
-    if ((aggreagationBody?.metric === "count" || aggreagationBody?.metric?.metric_functions) && !isHistogram) {
-      const fieldsToFetch = []
-      for (byTerm of aggreagationBody?.by || []) {
-        if (!preDefinedDateFields.includes(byTerm.field)) {
-          const FieldValue = FieldDataType.get(`${index}##${byTerm.field}`)
-          if (FieldValue) {
-            if (FieldValue === 'DATE') {
-              FIELDS.DateFields.push(byTerm.field)
-            } else if (["long", "float", "double"].includes(FieldValue)) {
-              FIELDS.NumberField.push(byTerm.field)
-            }
-          }
-          else {
-            fieldsToFetch.push(byTerm.field)
+async function populateDataTypeOfFields(esClient,
+  aggreagationBody,
+  isHistogram,
+  index) {
+  let FIELDS = {
+    DateFields: [],
+    NumberField: []
+  };
+  if ((aggreagationBody?.metric === "count" || aggreagationBody?.metric?.metric_functions) && !isHistogram) {
+    const fieldsToFetch = []
+    for (byTerm of aggreagationBody?.by || []) {
+      if (!preDefinedDateFields.includes(byTerm.field)) {
+        const FieldValue = FieldDataType.get(`${index}##${byTerm.field}`)
+        if (FieldValue) {
+          if (FieldValue === 'DATE') {
+            FIELDS.DateFields.push(byTerm.field)
+          } else if (FieldValue === 'NUMBER') {
+            FIELDS.NumberField.push(byTerm.field)
           }
         }
         else {
-          FIELDS.DateFields.push(byTerm.field)
+          fieldsToFetch.push(byTerm.field)
         }
       }
+      else {
+        FIELDS.DateFields.push(byTerm.field)
+      }
+    }
 
-      if (fieldsToFetch.length >= 1) {
-        try {
-          const { body } = await esClient.fieldCaps({
-            index,
-            fields: fieldsToFetch,
-            include_unmapped: true,
-          });
-          for (const field of fieldsToFetch) {
-            if (body.fields[field]) {
-              if (
-                body.fields[field]?.['long'] ||
-                body.fields[field]?.['float'] ||
-                body.fields[field]?.['double']
-              ) {
-                cacheFieldDataType(body.indices,
-                  (body.fields[field]?.['long']?.indices || []).concat(
-                    body.fields[field]?.['float']?.indices || []
-                  ).concat(
-                    body.fields[field]?.['double']?.indices || []
-                  ),
-                  field, 'NUMBER')
-                FIELDS.NumberField.push(field)
-              }
-              if (body.fields[field]?.['date']) {
-                cacheFieldDataType(body.indices, body.fields[field]?.['date']?.indices, field, 'DATE')
-                FIELDS.DateFields.push(field)
-              }
-              else {
-                delete body.fields[field].unmapped
-                for (const filedType in body.fields[field]) {
-                  cacheFieldDataType(body.indices, body.fields[field]?.[filedType]?.indices, field, 'N')
-                }
+    if (fieldsToFetch.length >= 1) {
+      try {
+        const { body } = await esClient.fieldCaps({
+          index,
+          fields: fieldsToFetch,
+          include_unmapped: true,
+        });
+        for (const field of fieldsToFetch) {
+          if (body.fields[field]) {
+            if (
+              body.fields[field]?.['long'] ||
+              body.fields[field]?.['float'] ||
+              body.fields[field]?.['double']
+            ) {
+              cacheFieldDataType(body.indices,
+                (body.fields[field]?.['long']?.indices || []).concat(
+                  body.fields[field]?.['float']?.indices || []
+                ).concat(
+                  body.fields[field]?.['double']?.indices || []
+                ),
+                field, 'NUMBER')
+              FIELDS.NumberField.push(field)
+            }
+            if (body.fields[field]?.['date']) {
+              cacheFieldDataType(body.indices, body.fields[field]?.['date']?.indices, field, 'DATE')
+              FIELDS.DateFields.push(field)
+            }
+            else {
+              delete body.fields[field].unmapped
+              for (const filedType in body.fields[field]) {
+                cacheFieldDataType(body.indices, body.fields[field]?.[filedType]?.indices, field, 'N')
               }
             }
           }
-        } catch (err) {
-          console.log(err);
         }
+      } catch (err) {
+        console.log(err);
       }
     }
-    return FIELDS;
   }
+  return FIELDS;
+}
 
-  
+
 async function process(searchBody, aggreagationBody, timePicker, options) {
   const parseStartTime = performance.now();
   const { esClient, shouldTablify = true } = options;
@@ -337,12 +337,18 @@ async function process(searchBody, aggreagationBody, timePicker, options) {
       });
     }
   }
+
+  const p = performance.now()
+  const d = new Date()
+
   const FIELDS = await populateDataTypeOfFields(
     esClient,
     aggreagationBody,
     isHistogram,
     searchBody.index
   );
+  console.log("p", performance.now() - p);
+  console.log("d", new Date() - d);
   const { size, DSL } = createDSL(
     searchBody,
     aggreagationBody,
