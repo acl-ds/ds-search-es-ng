@@ -4,10 +4,10 @@ const { createDSL } = require("./dsl_generator");
 const { tablify } = require("../utils/tablify");
 
 
-const FieldDataType = new Map(
+const FieldDataType = new Map([
   ["@timestamp",'DATE'],
   ["timestamp",'DATE']  
-)
+])
 
 function findAggsSize(size, bucketSizeHistory) {
   aggsSum = bucketSizeHistory.reduce((a, b) => a + b, 0);
@@ -254,7 +254,7 @@ function cacheFieldDataType(indices, mappedIndices, field, type) {
   }
 }
 
-function fetchDateTypeFields(mapping, prefix) {
+function fetchDataTypeFields(mapping, prefix) {
   const DateFields = [];
   const NumberField = [];
   for (const i in mapping) {
@@ -298,7 +298,7 @@ async function process(searchBody, aggreagationBody, timePicker, options) {
   const p = performance.now()
   const d = new Date()
 
-  const FIELDS = await fetchDateTypeFields(
+  const FIELDS = await fetchDataTypeFields(
     esClient,
     aggreagationBody,
     isHistogram,
