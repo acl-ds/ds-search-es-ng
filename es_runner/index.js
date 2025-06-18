@@ -293,8 +293,7 @@ async function fetchDataTypeOfFields(
               FIELDS.NumberField.push(field)
             }
             else {
-              FIELDS.NumberField.push(field, "N")
-
+              FieldDataType.set(field,'N')
             }
           }
         }
