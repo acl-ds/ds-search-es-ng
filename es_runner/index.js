@@ -4,8 +4,10 @@ const { createDSL } = require("./dsl_generator");
 const { tablify } = require("../utils/tablify");
 
 
-const FieldDataType = new Map()
-const preDefinedDateFields = ["@timestamp", "timestamp"]
+const FieldDataType = new Map(
+  ["@timestamp",'DATE'],
+  ["timestamp",'DATE']  
+)
 
 function findAggsSize(size, bucketSizeHistory) {
   aggsSum = bucketSizeHistory.reduce((a, b) => a + b, 0);
@@ -252,76 +254,29 @@ function cacheFieldDataType(indices, mappedIndices, field, type) {
   }
 }
 
-async function populateDataTypeOfFields(esClient,
-  aggreagationBody,
-  isHistogram,
-  index) {
-  let FIELDS = {
-    DateFields: [],
-    NumberField: []
-  };
-  if ((aggreagationBody?.metric === "count" || aggreagationBody?.metric?.metric_functions) && !isHistogram) {
-    const fieldsToFetch = []
-    for (byTerm of aggreagationBody?.by || []) {
-      if (!preDefinedDateFields.includes(byTerm.field)) {
-        const FieldValue = FieldDataType.get(`${index}##${byTerm.field}`)
-        if (FieldValue) {
-          if (FieldValue === 'DATE') {
-            FIELDS.DateFields.push(byTerm.field)
-          } else if (FieldValue === 'NUMBER') {
-            FIELDS.NumberField.push(byTerm.field)
-          }
-        }
-        else {
-          fieldsToFetch.push(byTerm.field)
-        }
-      }
-      else {
-        FIELDS.DateFields.push(byTerm.field)
-      }
-    }
-
-    if (fieldsToFetch.length >= 1) {
-      try {
-        const { body } = await esClient.fieldCaps({
-          index,
-          fields: fieldsToFetch,
-          include_unmapped: true,
-        });
-        for (const field of fieldsToFetch) {
-          if (body.fields[field]) {
-            if (
-              body.fields[field]?.['long'] ||
-              body.fields[field]?.['float'] ||
-              body.fields[field]?.['double']
-            ) {
-              cacheFieldDataType(body.indices,
-                (body.fields[field]?.['long']?.indices || []).concat(
-                  body.fields[field]?.['float']?.indices || []
-                ).concat(
-                  body.fields[field]?.['double']?.indices || []
-                ),
-                field, 'NUMBER')
-              FIELDS.NumberField.push(field)
-            }
-            if (body.fields[field]?.['date']) {
-              cacheFieldDataType(body.indices, body.fields[field]?.['date']?.indices, field, 'DATE')
-              FIELDS.DateFields.push(field)
-            }
-            else {
-              delete body.fields[field].unmapped
-              for (const filedType in body.fields[field]) {
-                cacheFieldDataType(body.indices, body.fields[field]?.[filedType]?.indices, field, 'N')
-              }
-            }
-          }
-        }
-      } catch (err) {
-        console.log(err);
-      }
+function fetchDateTypeFields(mapping, prefix) {
+  const DateFields = [];
+  const NumberField = [];
+  for (const i in mapping) {
+    if (mapping[i].properties) {
+      const subDATA = fetchDateTypeFields(
+        mapping[i].properties,
+        `${prefix ? `${prefix}.${i}` : i}`
+      );
+      DateFields.push(subDATA.DateFields);
+      NumberField.push(subDATA.NumberField);
+    } else {
+      if (mapping[i].type === "date")
+        DateFields.push(`${prefix ? `${prefix}.${i}` : i}`);
+      else if (
+        mapping[i].type === "long" ||
+        mapping[i].type === "float" ||
+        mapping[i].type === "double"
+      )
+        NumberField.push(`${prefix ? `${prefix}.${i}` : i}`);
     }
   }
-  return FIELDS;
+  return { DateFields, NumberField };
 }
 
 
@@ -343,7 +298,7 @@ async function process(searchBody, aggreagationBody, timePicker, options) {
   const p = performance.now()
   const d = new Date()
 
-  const FIELDS = await populateDataTypeOfFields(
+  const FIELDS = await fetchDateTypeFields(
     esClient,
     aggreagationBody,
     isHistogram,
