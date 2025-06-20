@@ -125,7 +125,6 @@ async function driveExecuteQuery(
     );
     if (status) {
       if (
-        true &&
         isHistogram &&
         body.query.bool.filter[0] &&
         result.aggregations

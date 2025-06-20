@@ -25,8 +25,8 @@ async function processDataStoreSearch(
   timePicker,
   options = {}
 ) {
-  const result = await process(search, aggregation, timePicker, options, head);
-  head.data.push(...result.data);
+  const result = await process(search, aggregation, timePicker, options, head);  
+  head.data = head.data.concat(result.data);
   head.meta.push({ processor: "data_store_search", ...result.meta });
 }
 
