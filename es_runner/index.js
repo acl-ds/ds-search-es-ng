@@ -3,11 +3,10 @@ const { performance } = require("perf_hooks");
 const { createDSL } = require("./dsl_generator");
 const { tablify } = require("../utils/tablify");
 
-
 const FieldDataType = new Map([
-  ["@timestamp", 'DATE'],
-  ["timestamp", 'DATE']
-])
+  ["@timestamp", "DATE"],
+  ["timestamp", "DATE"],
+]);
 
 function findAggsSize(size, bucketSizeHistory) {
   aggsSum = bucketSizeHistory.reduce((a, b) => a + b, 0);
@@ -16,12 +15,10 @@ function findAggsSize(size, bucketSizeHistory) {
   return size - aggsSum;
 }
 
-
 function convertEpochtoUTC(item, aggreagationBody, FIELDS) {
   const data = {};
   if (aggreagationBody && FIELDS.length > 0) {
     for (byTerm of aggreagationBody.by) {
-
       if (
         item.key[byTerm.name || byTerm.field] &&
         FIELDS.includes(byTerm.field) &&
@@ -37,7 +34,7 @@ function convertEpochtoUTC(item, aggreagationBody, FIELDS) {
 }
 
 function populateCompostiteAggsData(aggsData, aggreagationBody, FIELDS) {
-  const data = []
+  const data = [];
   for (item of aggsData) {
     const convertDate = convertEpochtoUTC(item, aggreagationBody, FIELDS);
     data.push({
@@ -46,7 +43,7 @@ function populateCompostiteAggsData(aggsData, aggreagationBody, FIELDS) {
       ...convertDate,
     });
   }
-  return data
+  return data;
 }
 
 function filterBuckets(buckets, gte, lte) {
@@ -68,7 +65,13 @@ async function executeQuery(client, body, { indices }) {
       body,
       rest_total_hits_as_int: true,
     });
-
+    
+    if (resultFromES.body?._shards.failed >= 0) {
+      return {
+        status: false,
+        message: "failed query search,",
+      };
+    }
   } catch (err) {
     if (err.meta && err.meta.statusCode >= 400) {
       return {
@@ -89,7 +92,6 @@ async function executeQuery(client, body, { indices }) {
     message: "data store query completed",
   };
 }
-
 
 async function driveExecuteQuery(
   client,
@@ -124,11 +126,7 @@ async function driveExecuteQuery(
       { indices }
     );
     if (status) {
-      if (
-        isHistogram &&
-        body.query.bool.filter[0] &&
-        result.aggregations
-      ) {
+      if (isHistogram && body.query.bool.filter[0] && result.aggregations) {
         const aggsField = Object.keys(result?.aggregations)[0];
         result.aggregations[aggsField].buckets = filterBuckets(
           result.aggregations[aggsField].buckets || [],
@@ -142,7 +140,7 @@ async function driveExecuteQuery(
         result.aggregations.composite_agg.after_key &&
         body.aggs.composite_agg.composite.size < size &&
         result.aggregations.composite_agg.buckets.length >=
-        body.aggs.composite_agg.composite.size &&
+          body.aggs.composite_agg.composite.size &&
         body.aggs.composite_agg.composite.size > 0
       ) {
         body.aggs.composite_agg.composite.after =
@@ -150,7 +148,7 @@ async function driveExecuteQuery(
 
         body.aggs.composite_agg.composite.size =
           bucketSizeHistory[
-          bucketSizeHistory.push(findAggsSize(size, bucketSizeHistory)) - 1
+            bucketSizeHistory.push(findAggsSize(size, bucketSizeHistory)) - 1
           ];
 
         if (!resultFromEQ.result) {
@@ -165,7 +163,6 @@ async function driveExecuteQuery(
         console.log("query took ", took);
 
         if (!body.aggs.composite_agg.composite.size > 0) {
-
           resultFromEQ.status = true;
           return resultFromEQ;
         }
@@ -252,23 +249,25 @@ async function fetchDataTypeOfFields(
 ) {
   let FIELDS = {
     DateFields: [],
-    NumberField: []
+    NumberField: [],
   };
-  if ((aggreagationBody?.metric === "count" || aggreagationBody?.metric?.metric_functions) && !isHistogram) {
-    const fieldsToFetch = []
+  if (
+    (aggreagationBody?.metric === "count" ||
+      aggreagationBody?.metric?.metric_functions) &&
+    !isHistogram
+  ) {
+    const fieldsToFetch = [];
     for (byTerm of aggreagationBody?.by || []) {
-      const FieldValue = FieldDataType.get(byTerm.field)
+      const FieldValue = FieldDataType.get(byTerm.field);
       if (FieldValue) {
-        if (FieldValue === 'DATE') {
-          FIELDS.DateFields.push(byTerm.field)
-        } else if (FieldValue === 'NUMBER') {
-          FIELDS.NumberField.push(byTerm.field)
+        if (FieldValue === "DATE") {
+          FIELDS.DateFields.push(byTerm.field);
+        } else if (FieldValue === "NUMBER") {
+          FIELDS.NumberField.push(byTerm.field);
         }
+      } else {
+        fieldsToFetch.push(byTerm.field);
       }
-      else {
-        fieldsToFetch.push(byTerm.field)
-      }
-
     }
 
     if (fieldsToFetch.length >= 1) {
@@ -279,20 +278,18 @@ async function fetchDataTypeOfFields(
         });
         for (const field of fieldsToFetch) {
           if (body.fields[field]) {
-            if (body.fields[field]?.['date']) {
-              FieldDataType.set(field, 'DATE')
-              FIELDS.DateFields.push(field)
-            }
-            else if (
-              body.fields[field]?.['long'] ||
-              body.fields[field]?.['float'] ||
-              body.fields[field]?.['double']
+            if (body.fields[field]?.["date"]) {
+              FieldDataType.set(field, "DATE");
+              FIELDS.DateFields.push(field);
+            } else if (
+              body.fields[field]?.["long"] ||
+              body.fields[field]?.["float"] ||
+              body.fields[field]?.["double"]
             ) {
-              FieldDataType.set(field, 'NUMBER')
-              FIELDS.NumberField.push(field)
-            }
-            else {
-              FieldDataType.set(field,'N')
+              FieldDataType.set(field, "NUMBER");
+              FIELDS.NumberField.push(field);
+            } else {
+              FieldDataType.set(field, "N");
             }
           }
         }
@@ -319,8 +316,8 @@ async function process(searchBody, aggreagationBody, timePicker, options) {
     }
   }
 
-  const p = performance.now()
-  const d = new Date()
+  const p = performance.now();
+  const d = new Date();
 
   const FIELDS = await fetchDataTypeOfFields(
     esClient,
@@ -359,12 +356,17 @@ async function process(searchBody, aggreagationBody, timePicker, options) {
             result.aggregations.composite_agg.buckets,
             aggreagationBody,
             FIELDS.DateFields
-          )
+          );
         else if (shouldTablify && result.aggregations)
           data.push(...tablify(processAggregatedResults(result.aggregations)));
-        else if (result.aggregations) data.push(processAggregatedResults(result.aggregations));
+        else if (result.aggregations)
+          data.push(processAggregatedResults(result.aggregations));
         else
-          console.log(new Date(), "aggregation failuures", result._shards.failures);
+          console.log(
+            new Date(),
+            "aggregation failuures",
+            result._shards.failures
+          );
       }
     }
   }
