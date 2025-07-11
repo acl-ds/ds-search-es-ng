@@ -66,7 +66,7 @@ async function executeQuery(client, body, { indices }) {
       rest_total_hits_as_int: true,
     });
     
-    if (resultFromES.body?._shards.failed >= 0) {
+    if (resultFromES.body?._shards.failed > 0) {
       return {
         status: false,
         message: "failed query search,",
